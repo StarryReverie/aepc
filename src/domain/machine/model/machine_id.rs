@@ -1,0 +1,58 @@
+use getset::Getters;
+use snafu::prelude::*;
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Getters)]
+#[getset(get = "pub")]
+pub struct MachineId {
+    value: String,
+}
+
+impl MachineId {
+    pub fn new<S: Into<String>>(value: S) -> Result<Self, NewMachineIdError> {
+        let value = value.into();
+        ensure!(!value.is_empty(), EmptySnafu);
+        ensure!(
+            value
+                .chars()
+                .all(|ch| ch.is_ascii_alphanumeric() || ch == '-' || ch == '_'),
+            InvalidCharacterSnafu,
+        );
+        Ok(Self {
+            value: format!("machine#{}", value),
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Snafu)]
+pub enum NewMachineIdError {
+    #[snafu(display("machine ID should not be empty"))]
+    Empty,
+    #[snafu(display("machine ID should only contain alphabets, numbers, hyphens and underscores"))]
+    InvalidCharacter,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_valid_machine_id() {
+        let id = MachineId::new("Machine-123_abc").unwrap();
+        assert_eq!(id.value(), "machine#Machine-123_abc");
+    }
+
+    #[test]
+    fn test_empty_string_returns_error() {
+        assert!(matches!(MachineId::new(""), Err(NewMachineIdError::Empty)));
+    }
+
+    #[test]
+    fn test_invalid_characters_return_error() {
+        for invalid in ["test id", "abc!", "test.id", "测试"] {
+            assert!(matches!(
+                MachineId::new(invalid),
+                Err(NewMachineIdError::InvalidCharacter),
+            ));
+        }
+    }
+}
