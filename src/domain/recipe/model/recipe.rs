@@ -1,0 +1,112 @@
+use getset::Getters;
+use snafu::prelude::*;
+
+use crate::domain::item::model::ItemId;
+use crate::domain::machine::model::MachineId;
+
+use super::{Period, Quantity, RecipeId};
+
+#[derive(Debug, Clone, PartialEq, Getters)]
+#[getset(get = "pub")]
+pub struct Recipe {
+    id: RecipeId,
+    machine: MachineId,
+    period: Period,
+    materials: Vec<(ItemId, Quantity)>,
+    products: Vec<(ItemId, Quantity)>,
+}
+
+impl Recipe {
+    pub fn new(
+        id: RecipeId,
+        machine: MachineId,
+        period: Period,
+        materials: Vec<(ItemId, Quantity)>,
+        products: Vec<(ItemId, Quantity)>,
+    ) -> Result<Self, NewRecipeError> {
+        ensure!(!products.is_empty(), NoProductsSnafu);
+
+        for (i, (mi, _)) in materials.iter().enumerate() {
+            for (mj, _) in materials.iter().skip(i + 1) {
+                ensure!(mi != mj, DuplicateMaterialSnafu);
+            }
+        }
+
+        for (i, (pi, _)) in products.iter().enumerate() {
+            for (pj, _) in products.iter().skip(i + 1) {
+                ensure!(pi != pj, DuplicateProductSnafu);
+            }
+        }
+
+        Ok(Self {
+            id,
+            machine,
+            period,
+            materials,
+            products,
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Snafu)]
+pub enum NewRecipeError {
+    #[snafu(display("recipe must have at least one product"))]
+    NoProducts,
+    #[snafu(display("recipe has duplicate materials"))]
+    DuplicateMaterial,
+    #[snafu(display("recipe has duplicate products"))]
+    DuplicateProduct,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_empty_products_returns_error() {
+        let id = RecipeId::new("1").unwrap();
+        let machine = MachineId::new("1").unwrap();
+        let period = Period::new(30.0).unwrap();
+        let materials = vec![];
+        let products = vec![];
+
+        assert!(matches!(
+            Recipe::new(id, machine, period, materials, products),
+            Err(NewRecipeError::NoProducts),
+        ));
+    }
+
+    #[test]
+    fn test_duplicate_materials_returns_error() {
+        let id = RecipeId::new("1").unwrap();
+        let machine = MachineId::new("1").unwrap();
+        let period = Period::new(30.0).unwrap();
+        let materials = vec![
+            (ItemId::new("item1").unwrap(), Quantity::new(10.0).unwrap()),
+            (ItemId::new("item1").unwrap(), Quantity::new(20.0).unwrap()),
+        ];
+        let products = vec![(ItemId::new("item2").unwrap(), Quantity::new(5.0).unwrap())];
+
+        assert!(matches!(
+            Recipe::new(id, machine, period, materials, products),
+            Err(NewRecipeError::DuplicateMaterial),
+        ));
+    }
+
+    #[test]
+    fn test_duplicate_products_returns_error() {
+        let id = RecipeId::new("1").unwrap();
+        let machine = MachineId::new("1").unwrap();
+        let period = Period::new(30.0).unwrap();
+        let materials = vec![(ItemId::new("item1").unwrap(), Quantity::new(10.0).unwrap())];
+        let products = vec![
+            (ItemId::new("item2").unwrap(), Quantity::new(5.0).unwrap()),
+            (ItemId::new("item2").unwrap(), Quantity::new(3.0).unwrap()),
+        ];
+
+        assert!(matches!(
+            Recipe::new(id, machine, period, materials, products),
+            Err(NewRecipeError::DuplicateProduct),
+        ));
+    }
+}
