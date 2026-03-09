@@ -13,6 +13,10 @@ pub struct Flow {
 }
 
 impl Flow {
+    pub fn zero() -> Self {
+        Flow::new(0.0).expect("0 should be non-negative")
+    }
+
     pub fn new(value: f64) -> Result<Self, NewFlowError> {
         ensure!(value >= 0.0, NegativeSnafu);
         Ok(Self { value })

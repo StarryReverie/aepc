@@ -25,24 +25,55 @@ impl Plan {
 
     pub fn goal(&self) -> &ItemId {
         match self {
-            Plan::Normal { step, .. } => step.goal(),
-            Plan::Cyclic { step } => step.goal(),
+            Self::Normal { step, .. } => step.goal(),
+            Self::Cyclic { step } => step.goal(),
         }
     }
 
     pub fn replica_effective(&self) -> Replica {
         match self {
-            Plan::Normal { step, .. } => step.replica_effective(),
-            Plan::Cyclic { step } => step.replica_effective(),
+            Self::Normal { step, .. } => step.replica_effective(),
+            Self::Cyclic { step } => step.replica_effective(),
         }
     }
 
     pub fn get_dependency(&self, dependency: &ItemId) -> Option<&Plan> {
         match self {
-            Plan::Normal { dependencies, .. } => {
+            Self::Normal { dependencies, .. } => {
                 dependencies.iter().find(|plan| plan.goal() == dependency)
             }
-            Plan::Cyclic { .. } => None,
+            Self::Cyclic { .. } => None,
+        }
+    }
+
+    pub fn amplify(self, multiplier: Replica) -> Self {
+        match self {
+            Self::Normal { step, dependencies } => Self::Normal {
+                step: NormalStep {
+                    replica_effective: Replica::new(
+                        step.replica_effective.value() * multiplier.value(),
+                    )
+                    .expect("the result should be positive"),
+                    replica_backward: step.replica_backward.map(|r| {
+                        Replica::new(r.value() * multiplier.value())
+                            .expect("the result should be positive")
+                    }),
+                    ..step
+                },
+                dependencies: dependencies
+                    .into_iter()
+                    .map(|plan| plan.amplify(multiplier))
+                    .collect(),
+            },
+            Self::Cyclic { step } => Self::Cyclic {
+                step: CyclicStep {
+                    replica_effective: Replica::new(
+                        step.replica_effective.value() * multiplier.value(),
+                    )
+                    .expect("the result should be positive"),
+                    ..step
+                },
+            },
         }
     }
 }
