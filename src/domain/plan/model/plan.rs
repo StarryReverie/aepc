@@ -114,55 +114,63 @@ impl CyclicStep {
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Result as AnyhowResult;
+
     use super::*;
 
     #[test]
-    fn test_goal_normal() {
-        let goal = ItemId::new("i1").unwrap();
-        let recipe = RecipeId::new("r1").unwrap();
-        let replica = Replica::new(2.0).unwrap();
-        let step = NormalStep::forward(goal.clone(), recipe, replica);
-        let plan = Plan::normal(step, vec![]);
+    fn test_goal_normal() -> AnyhowResult<()> {
+        let goal = ItemId::new("i1")?;
+        let plan = Plan::normal(
+            NormalStep::forward(goal.clone(), RecipeId::new("r1")?, Replica::new(2.0)?),
+            vec![],
+        );
         assert_eq!(plan.goal(), &goal);
+        Ok(())
     }
 
     #[test]
-    fn test_goal_cyclic() {
-        let goal = ItemId::new("i1").unwrap();
-        let recipe = RecipeId::new("r1").unwrap();
-        let replica = Replica::new(2.0).unwrap();
-        let step = CyclicStep::new(goal.clone(), recipe, replica, 1);
-        let plan = Plan::cyclic(step);
+    fn test_goal_cyclic() -> AnyhowResult<()> {
+        let goal = ItemId::new("i1")?;
+        let plan = Plan::cyclic(CyclicStep::new(
+            goal.clone(),
+            RecipeId::new("r1")?,
+            Replica::new(2.0)?,
+            1,
+        ));
         assert_eq!(plan.goal(), &goal);
+        Ok(())
     }
 
     #[test]
-    fn test_replica_effective_normal() {
-        let goal = ItemId::new("i1").unwrap();
-        let recipe = RecipeId::new("r1").unwrap();
-        let replica = Replica::new(2.5).unwrap();
-        let step = NormalStep::forward(goal, recipe, replica);
-        let plan = Plan::normal(step, vec![]);
-        assert_eq!(plan.replica_effective(), Replica::new(2.5).unwrap());
+    fn test_replica_effective_normal() -> AnyhowResult<()> {
+        let plan = Plan::normal(
+            NormalStep::forward(ItemId::new("i1")?, RecipeId::new("r1")?, Replica::new(2.5)?),
+            vec![],
+        );
+        assert_eq!(plan.replica_effective(), Replica::new(2.5)?);
+        Ok(())
     }
 
     #[test]
-    fn test_replica_effective_cyclic() {
-        let goal = ItemId::new("i1").unwrap();
-        let recipe = RecipeId::new("r1").unwrap();
-        let replica = Replica::new(3.7).unwrap();
-        let step = CyclicStep::new(goal, recipe, replica, 1);
-        let plan = Plan::cyclic(step);
-        assert_eq!(plan.replica_effective(), Replica::new(3.7).unwrap());
+    fn test_replica_effective_cyclic() -> AnyhowResult<()> {
+        let plan = Plan::cyclic(CyclicStep::new(
+            ItemId::new("i1")?,
+            RecipeId::new("r1")?,
+            Replica::new(3.7)?,
+            1,
+        ));
+        assert_eq!(plan.replica_effective(), Replica::new(3.7)?);
+        Ok(())
     }
 
     #[test]
-    fn test_get_dependency_normal() {
-        let goal1 = ItemId::new("i1").unwrap();
-        let goal2 = ItemId::new("i2").unwrap();
-        let goal3 = ItemId::new("i3").unwrap();
-        let recipe = RecipeId::new("r1").unwrap();
-        let replica = Replica::new(2.0).unwrap();
+    fn test_get_dependency_normal() -> AnyhowResult<()> {
+        let goal1 = ItemId::new("i1")?;
+        let goal2 = ItemId::new("i2")?;
+        let goal3 = ItemId::new("i3")?;
+        let recipe = RecipeId::new("r1")?;
+        let replica = Replica::new(2.0)?;
 
         let dep1 = Plan::normal(
             NormalStep::forward(goal2.clone(), recipe.clone(), replica),
@@ -179,19 +187,21 @@ mod tests {
 
         assert_eq!(plan.get_dependency(&goal2).unwrap().goal(), &goal2);
         assert_eq!(plan.get_dependency(&goal3).unwrap().goal(), &goal3);
-        assert!(plan.get_dependency(&ItemId::new("i4").unwrap()).is_none());
+        assert!(plan.get_dependency(&ItemId::new("i4")?).is_none());
+        Ok(())
     }
 
     #[test]
-    fn test_get_dependency_cyclic() {
-        let goal1 = ItemId::new("i1").unwrap();
-        let goal2 = ItemId::new("i2").unwrap();
-        let recipe = RecipeId::new("r1").unwrap();
-        let replica = Replica::new(2.0).unwrap();
+    fn test_get_dependency_cyclic() -> AnyhowResult<()> {
+        let goal1 = ItemId::new("i1")?;
+        let goal2 = ItemId::new("i2")?;
+        let recipe = RecipeId::new("r1")?;
+        let replica = Replica::new(2.0)?;
 
         let step = CyclicStep::new(goal1, recipe, replica, 1);
         let plan = Plan::cyclic(step);
 
         assert!(plan.get_dependency(&goal2).is_none());
+        Ok(())
     }
 }

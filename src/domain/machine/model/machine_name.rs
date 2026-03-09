@@ -31,12 +31,15 @@ impl Display for MachineName {
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Result as AnyhowResult;
+
     use super::*;
 
     #[test]
-    fn test_valid_machine_name() {
-        let name = MachineName::new("Test Machine 123 测试").unwrap();
+    fn test_valid_machine_name() -> AnyhowResult<()> {
+        let name = MachineName::new("Test Machine 123 测试")?;
         assert_eq!(name.value(), "Test Machine 123 测试");
+        Ok(())
     }
 
     #[test]
@@ -48,8 +51,11 @@ mod tests {
     }
 
     #[test]
-    fn test_display() {
-        let name = MachineName::new("Test Machine").unwrap();
-        assert_eq!(format!("{}", name), "Test Machine");
+    fn test_display() -> AnyhowResult<()> {
+        assert_eq!(
+            format!("{}", MachineName::new("Test Machine")?),
+            "Test Machine"
+        );
+        Ok(())
     }
 }

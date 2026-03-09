@@ -66,15 +66,15 @@ pub enum NewFlowError {
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Result as AnyhowResult;
+
     use super::*;
 
     #[test]
-    fn test_valid_flow() {
-        let flow = Flow::new(123.45).unwrap();
-        assert_eq!(flow.value(), 123.45);
-
-        let zero = Flow::new(0.0).unwrap();
-        assert_eq!(zero.value(), 0.0);
+    fn test_valid_flow() -> AnyhowResult<()> {
+        assert_eq!(Flow::new(123.45)?.value(), 123.45);
+        assert_eq!(Flow::new(0.0)?.value(), 0.0);
+        Ok(())
     }
 
     #[test]
@@ -83,40 +83,36 @@ mod tests {
     }
 
     #[test]
-    fn test_display() {
-        let flow = Flow::new(123.45).unwrap();
-        assert_eq!(format!("{}", flow), "123.45 items/min");
+    fn test_display() -> AnyhowResult<()> {
+        assert_eq!(format!("{}", Flow::new(123.45)?), "123.45 items/min");
+        Ok(())
     }
 
     #[test]
-    fn test_add() {
-        let f1 = Flow::new(10.0).unwrap();
-        let f2 = Flow::new(20.0).unwrap();
-        let result = f1 + f2;
-        assert_eq!(result, Flow::new(30.0).unwrap());
+    fn test_add() -> AnyhowResult<()> {
+        let result = Flow::new(10.0)? + Flow::new(20.0)?;
+        assert_eq!(result, Flow::new(30.0)?);
+        Ok(())
     }
 
     #[test]
-    fn test_div_replica() {
-        let flow = Flow::new(120.0).unwrap();
-        let replica = Replica::new(3.0).unwrap();
-        let result = flow / replica;
-        assert_eq!(result, Rate::new(40.0).unwrap());
+    fn test_div_replica() -> AnyhowResult<()> {
+        let result = Flow::new(120.0)? / Replica::new(3.0)?;
+        assert_eq!(result, Rate::new(40.0)?);
+        Ok(())
     }
 
     #[test]
-    fn test_div_rate() {
-        let flow = Flow::new(120.0).unwrap();
-        let rate = Rate::new(40.0).unwrap();
-        let result = flow / rate;
-        assert_eq!(result, Replica::new(3.0).unwrap());
+    fn test_div_rate() -> AnyhowResult<()> {
+        let result = Flow::new(120.0)? / Rate::new(40.0)?;
+        assert_eq!(result, Replica::new(3.0)?);
+        Ok(())
     }
 
     #[test]
-    fn test_mul_period() {
-        let flow = Flow::new(60.0).unwrap();
-        let period = Period::new(30.0).unwrap();
-        let result = flow * period;
-        assert_eq!(result, Quantity::new(30.0).unwrap());
+    fn test_mul_period() -> AnyhowResult<()> {
+        let result = Flow::new(60.0)? * Period::new(30.0)?;
+        assert_eq!(result, Quantity::new(30.0)?);
+        Ok(())
     }
 }

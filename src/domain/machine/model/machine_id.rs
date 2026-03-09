@@ -27,18 +27,23 @@ impl MachineId {
 pub enum NewMachineIdError {
     #[snafu(display("machine ID should not be empty"))]
     Empty,
-    #[snafu(display("machine ID should only contain alphabets, numbers, hyphens and underscores"))]
+    #[snafu(display(
+        "machine ID should only contain alphabets, numbers, hyphens and underscores"
+    ))]
     InvalidCharacter,
 }
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Result as AnyhowResult;
+
     use super::*;
 
     #[test]
-    fn test_valid_machine_id() {
-        let id = MachineId::new("Machine-123_abc").unwrap();
+    fn test_valid_machine_id() -> AnyhowResult<()> {
+        let id = MachineId::new("Machine-123_abc")?;
         assert_eq!(id.value(), "machine#Machine-123_abc");
+        Ok(())
     }
 
     #[test]

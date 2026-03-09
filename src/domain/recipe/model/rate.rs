@@ -57,15 +57,15 @@ pub enum NewRateError {
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Result as AnyhowResult;
+
     use super::*;
 
     #[test]
-    fn test_valid_rate() {
-        let rate = Rate::new(123.45).unwrap();
-        assert_eq!(rate.value(), 123.45);
-
-        let zero = Rate::new(0.0).unwrap();
-        assert_eq!(zero.value(), 0.0);
+    fn test_valid_rate() -> AnyhowResult<()> {
+        assert_eq!(Rate::new(123.45)?.value(), 123.45);
+        assert_eq!(Rate::new(0.0)?.value(), 0.0);
+        Ok(())
     }
 
     #[test]
@@ -74,32 +74,33 @@ mod tests {
     }
 
     #[test]
-    fn test_display() {
-        let rate = Rate::new(123.45).unwrap();
-        assert_eq!(format!("{}", rate), "123.45 items/(min*times)");
+    fn test_display() -> AnyhowResult<()> {
+        assert_eq!(
+            format!("{}", Rate::new(123.45)?),
+            "123.45 items/(min*times)"
+        );
+        Ok(())
     }
 
     #[test]
-    fn test_add() {
-        let r1 = Rate::new(10.0).unwrap();
-        let r2 = Rate::new(20.0).unwrap();
-        let result = r1 + r2;
-        assert_eq!(result, Rate::new(30.0).unwrap());
+    fn test_add() -> AnyhowResult<()> {
+        let r1 = Rate::new(10.0)?;
+        let r2 = Rate::new(20.0)?;
+        assert_eq!(r1 + r2, Rate::new(30.0)?);
+        Ok(())
     }
 
     #[test]
-    fn test_mul_replica() {
-        let rate = Rate::new(40.0).unwrap();
-        let replica = Replica::new(3.0).unwrap();
-        let result = rate * replica;
-        assert_eq!(result, Flow::new(120.0).unwrap());
+    fn test_mul_replica() -> AnyhowResult<()> {
+        let result = Rate::new(40.0)? * Replica::new(3.0)?;
+        assert_eq!(result, Flow::new(120.0)?);
+        Ok(())
     }
 
     #[test]
-    fn test_replica_mul_rate() {
-        let replica = Replica::new(3.0).unwrap();
-        let rate = Rate::new(40.0).unwrap();
-        let result = replica * rate;
-        assert_eq!(result, Flow::new(120.0).unwrap());
+    fn test_replica_mul_rate() -> AnyhowResult<()> {
+        let result = Replica::new(3.0)? * Rate::new(40.0)?;
+        assert_eq!(result, Flow::new(120.0)?);
+        Ok(())
     }
 }

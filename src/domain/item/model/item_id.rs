@@ -33,12 +33,15 @@ pub enum NewItemIdError {
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Result as AnyhowResult;
+
     use super::*;
 
     #[test]
-    fn test_valid_item_id() {
-        let id = ItemId::new("Item-123_abc").unwrap();
+    fn test_valid_item_id() -> AnyhowResult<()> {
+        let id = ItemId::new("Item-123_abc")?;
         assert_eq!(id.value(), "item#Item-123_abc");
+        Ok(())
     }
 
     #[test]

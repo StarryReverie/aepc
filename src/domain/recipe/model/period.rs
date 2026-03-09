@@ -30,12 +30,15 @@ pub enum NewPeriodError {
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Result as AnyhowResult;
+
     use super::*;
 
     #[test]
-    fn test_valid_period() {
-        let period = Period::new(123.45).unwrap();
+    fn test_valid_period() -> AnyhowResult<()> {
+        let period = Period::new(123.45)?;
         assert_eq!(period.value(), 123.45);
+        Ok(())
     }
 
     #[test]
@@ -51,8 +54,8 @@ mod tests {
     }
 
     #[test]
-    fn test_display() {
-        let period = Period::new(123.45).unwrap();
-        assert_eq!(format!("{}", period), "123.45 s");
+    fn test_display() -> AnyhowResult<()> {
+        assert_eq!(format!("{}", Period::new(123.45)?), "123.45 s");
+        Ok(())
     }
 }

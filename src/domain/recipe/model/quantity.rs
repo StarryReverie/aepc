@@ -59,15 +59,15 @@ pub enum NewQuantityError {
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Result as AnyhowResult;
+
     use super::*;
 
     #[test]
-    fn test_valid_quantity() {
-        let quantity = Quantity::new(123.45).unwrap();
-        assert_eq!(quantity.value(), 123.45);
-
-        let zero = Quantity::new(0.0).unwrap();
-        assert_eq!(zero.value(), 0.0);
+    fn test_valid_quantity() -> AnyhowResult<()> {
+        assert_eq!(Quantity::new(123.45)?.value(), 123.45);
+        assert_eq!(Quantity::new(0.0)?.value(), 0.0);
+        Ok(())
     }
 
     #[test]
@@ -79,32 +79,30 @@ mod tests {
     }
 
     #[test]
-    fn test_display() {
-        let quantity = Quantity::new(123.45).unwrap();
-        assert_eq!(format!("{}", quantity), "123.45 items");
+    fn test_display() -> AnyhowResult<()> {
+        assert_eq!(format!("{}", Quantity::new(123.45)?), "123.45 items");
+        Ok(())
     }
 
     #[test]
-    fn test_add() {
-        let q1 = Quantity::new(10.0).unwrap();
-        let q2 = Quantity::new(20.0).unwrap();
-        let result = q1 + q2;
-        assert_eq!(result, Quantity::new(30.0).unwrap());
+    fn test_add() -> AnyhowResult<()> {
+        let q1 = Quantity::new(10.0)?;
+        let q2 = Quantity::new(20.0)?;
+        assert_eq!(q1 + q2, Quantity::new(30.0)?);
+        Ok(())
     }
 
     #[test]
-    fn test_div_period() {
-        let quantity = Quantity::new(30.0).unwrap();
-        let period = Period::new(30.0).unwrap();
-        let result = quantity / period;
-        assert_eq!(result, Flow::new(60.0).unwrap());
+    fn test_div_period() -> AnyhowResult<()> {
+        let result = Quantity::new(30.0)? / Period::new(30.0)?;
+        assert_eq!(result, Flow::new(60.0)?);
+        Ok(())
     }
 
     #[test]
-    fn test_div_flow() {
-        let quantity = Quantity::new(120.0).unwrap();
-        let flow = Flow::new(60.0).unwrap();
-        let result = quantity / flow;
-        assert_eq!(result, Period::new(120.0).unwrap());
+    fn test_div_flow() -> AnyhowResult<()> {
+        let result = Quantity::new(120.0)? / Flow::new(60.0)?;
+        assert_eq!(result, Period::new(120.0)?);
+        Ok(())
     }
 }

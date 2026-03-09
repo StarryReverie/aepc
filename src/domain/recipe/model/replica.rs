@@ -43,12 +43,15 @@ pub enum NewReplicaError {
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Result as AnyhowResult;
+
     use super::*;
 
     #[test]
-    fn test_valid_replica() {
-        let replica = Replica::new(3.5).unwrap();
+    fn test_valid_replica() -> AnyhowResult<()> {
+        let replica = Replica::new(3.5)?;
         assert_eq!(replica.value(), 3.5);
+        Ok(())
     }
 
     #[test]
@@ -64,16 +67,17 @@ mod tests {
     }
 
     #[test]
-    fn test_display() {
-        let replica = Replica::new(3.5).unwrap();
-        assert_eq!(format!("{}", replica), "3.5 times");
+    fn test_display() -> AnyhowResult<()> {
+        assert_eq!(format!("{}", Replica::new(3.5)?), "3.5 times");
+        Ok(())
     }
 
     #[test]
-    fn test_add() {
-        let r1 = Replica::new(1.5).unwrap();
-        let r2 = Replica::new(2.5).unwrap();
+    fn test_add() -> AnyhowResult<()> {
+        let r1 = Replica::new(1.5)?;
+        let r2 = Replica::new(2.5)?;
         let result = r1 + r2;
-        assert_eq!(result, Replica::new(4.0).unwrap());
+        assert_eq!(result, Replica::new(4.0)?);
+        Ok(())
     }
 }

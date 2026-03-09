@@ -33,12 +33,15 @@ pub enum NewRecipeIdError {
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Result as AnyhowResult;
+
     use super::*;
 
     #[test]
-    fn test_valid_recipe_id() {
-        let id = RecipeId::new("Recipe-123_abc").unwrap();
+    fn test_valid_recipe_id() -> AnyhowResult<()> {
+        let id = RecipeId::new("Recipe-123_abc")?;
         assert_eq!(id.value(), "recipe#Recipe-123_abc");
+        Ok(())
     }
 
     #[test]

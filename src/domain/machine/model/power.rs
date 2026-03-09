@@ -30,15 +30,15 @@ pub enum NewPowerError {
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Result as AnyhowResult;
+
     use super::*;
 
     #[test]
-    fn test_valid_power() {
-        let power = Power::new(123.45).unwrap();
-        assert_eq!(power.value(), 123.45);
-
-        let power = Power::new(0.0).unwrap();
-        assert_eq!(power.value(), 0.0);
+    fn test_valid_power() -> AnyhowResult<()> {
+        assert_eq!(Power::new(123.45)?.value(), 123.45);
+        assert_eq!(Power::new(0.0)?.value(), 0.0);
+        Ok(())
     }
 
     #[test]
@@ -47,8 +47,8 @@ mod tests {
     }
 
     #[test]
-    fn test_display() {
-        let power = Power::new(123.45).unwrap();
-        assert_eq!(format!("{}", power), "123.45 kW");
+    fn test_display() -> AnyhowResult<()> {
+        assert_eq!(format!("{}", Power::new(123.45)?), "123.45 kW");
+        Ok(())
     }
 }

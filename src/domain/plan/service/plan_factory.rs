@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::{Result as AnyhowResult, bail};
+use anyhow::Result as AnyhowResult;
 
 use crate::domain::item::model::ItemId;
 use crate::domain::plan::model::{NormalStep, Plan};
@@ -27,7 +27,7 @@ impl PlanFactory {
                 return Ok(res);
             }
         }
-        bail!("no recipe found for product with ID = {goal:?}")
+        anyhow::bail!("no recipe found for product with ID = {goal:?}")
     }
 
     async fn make_plan_with_recipe(

@@ -31,12 +31,15 @@ pub enum NewItemNameError {
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Result as AnyhowResult;
+
     use super::*;
 
     #[test]
-    fn test_valid_item_name() {
-        let name = ItemName::new("Test Item 123 测试").unwrap();
+    fn test_valid_item_name() -> AnyhowResult<()> {
+        let name = ItemName::new("Test Item 123 测试")?;
         assert_eq!(name.value(), "Test Item 123 测试");
+        Ok(())
     }
 
     #[test]
@@ -45,8 +48,8 @@ mod tests {
     }
 
     #[test]
-    fn test_display() {
-        let name = ItemName::new("Test Item").unwrap();
-        assert_eq!(format!("{}", name), "Test Item");
+    fn test_display() -> AnyhowResult<()> {
+        assert_eq!(format!("{}", ItemName::new("Test Item")?), "Test Item");
+        Ok(())
     }
 }

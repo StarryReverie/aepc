@@ -77,13 +77,15 @@ pub enum NewRecipeError {
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Result as AnyhowResult;
+
     use super::*;
 
     #[test]
-    fn test_empty_products_returns_error() {
-        let id = RecipeId::new("1").unwrap();
-        let machine = MachineId::new("1").unwrap();
-        let period = Period::new(30.0).unwrap();
+    fn test_empty_products_returns_error() -> AnyhowResult<()> {
+        let id = RecipeId::new("1")?;
+        let machine = MachineId::new("1")?;
+        let period = Period::new(30.0)?;
         let materials = vec![];
         let products = vec![];
 
@@ -91,80 +93,83 @@ mod tests {
             Recipe::new(id, machine, period, materials, products),
             Err(NewRecipeError::NoProducts),
         ));
+        Ok(())
     }
 
     #[test]
-    fn test_duplicate_materials_returns_error() {
-        let id = RecipeId::new("1").unwrap();
-        let machine = MachineId::new("1").unwrap();
-        let period = Period::new(30.0).unwrap();
+    fn test_duplicate_materials_returns_error() -> AnyhowResult<()> {
+        let id = RecipeId::new("1")?;
+        let machine = MachineId::new("1")?;
+        let period = Period::new(30.0)?;
         let materials = vec![
-            (ItemId::new("item1").unwrap(), Quantity::new(10.0).unwrap()),
-            (ItemId::new("item1").unwrap(), Quantity::new(20.0).unwrap()),
+            (ItemId::new("item1")?, Quantity::new(10.0)?),
+            (ItemId::new("item1")?, Quantity::new(20.0)?),
         ];
-        let products = vec![(ItemId::new("item2").unwrap(), Quantity::new(5.0).unwrap())];
+        let products = vec![(ItemId::new("item2")?, Quantity::new(5.0)?)];
 
         assert!(matches!(
             Recipe::new(id, machine, period, materials, products),
             Err(NewRecipeError::DuplicateMaterial),
         ));
+        Ok(())
     }
 
     #[test]
-    fn test_duplicate_products_returns_error() {
-        let id = RecipeId::new("1").unwrap();
-        let machine = MachineId::new("1").unwrap();
-        let period = Period::new(30.0).unwrap();
-        let materials = vec![(ItemId::new("item1").unwrap(), Quantity::new(10.0).unwrap())];
+    fn test_duplicate_products_returns_error() -> AnyhowResult<()> {
+        let id = RecipeId::new("1")?;
+        let machine = MachineId::new("1")?;
+        let period = Period::new(30.0)?;
+        let materials = vec![(ItemId::new("item1")?, Quantity::new(10.0)?)];
         let products = vec![
-            (ItemId::new("item2").unwrap(), Quantity::new(5.0).unwrap()),
-            (ItemId::new("item2").unwrap(), Quantity::new(3.0).unwrap()),
+            (ItemId::new("item2")?, Quantity::new(5.0)?),
+            (ItemId::new("item2")?, Quantity::new(3.0)?),
         ];
 
         assert!(matches!(
             Recipe::new(id, machine, period, materials, products),
             Err(NewRecipeError::DuplicateProduct),
         ));
+        Ok(())
     }
 
     #[test]
-    fn test_get_product_rate() {
-        let id = RecipeId::new("1").unwrap();
-        let machine = MachineId::new("1").unwrap();
-        let period = Period::new(30.0).unwrap();
-        let materials = vec![(ItemId::new("item1").unwrap(), Quantity::new(10.0).unwrap())];
-        let products = vec![(ItemId::new("item2").unwrap(), Quantity::new(60.0).unwrap())];
+    fn test_get_product_rate() -> AnyhowResult<()> {
+        let id = RecipeId::new("1")?;
+        let machine = MachineId::new("1")?;
+        let period = Period::new(30.0)?;
+        let materials = vec![(ItemId::new("item1")?, Quantity::new(10.0)?)];
+        let products = vec![(ItemId::new("item2")?, Quantity::new(60.0)?)];
 
-        let recipe = Recipe::new(id, machine, period, materials, products).unwrap();
+        let recipe = Recipe::new(id, machine, period, materials, products)?;
 
-        let rate = recipe
-            .get_product_rate(&ItemId::new("item2").unwrap())
-            .unwrap();
-        assert_eq!(rate, Rate::new(120.0).unwrap());
+        let rate = recipe.get_product_rate(&ItemId::new("item2")?).unwrap();
+        assert_eq!(rate, Rate::new(120.0)?);
 
         assert!(recipe
-            .get_product_rate(&ItemId::new("nonexistent").unwrap())
+            .get_product_rate(&ItemId::new("nonexistent")?)
             .is_none());
+        Ok(())
     }
 
     #[test]
-    fn test_get_materials_flow() {
-        let id = RecipeId::new("1").unwrap();
-        let machine = MachineId::new("1").unwrap();
-        let period = Period::new(30.0).unwrap();
-        let materials = vec![(ItemId::new("item1").unwrap(), Quantity::new(10.0).unwrap())];
-        let products = vec![(ItemId::new("item2").unwrap(), Quantity::new(60.0).unwrap())];
+    fn test_get_materials_flow() -> AnyhowResult<()> {
+        let id = RecipeId::new("1")?;
+        let machine = MachineId::new("1")?;
+        let period = Period::new(30.0)?;
+        let materials = vec![(ItemId::new("item1")?, Quantity::new(10.0)?)];
+        let products = vec![(ItemId::new("item2")?, Quantity::new(60.0)?)];
 
-        let recipe = Recipe::new(id, machine, period, materials, products).unwrap();
+        let recipe = Recipe::new(id, machine, period, materials, products)?;
 
-        let replica = Replica::new(1.0).unwrap();
+        let replica = Replica::new(1.0)?;
         let flows = recipe.get_materials_flow(replica);
         assert_eq!(flows.len(), 1);
-        assert_eq!(flows[0].1, Flow::new(20.0).unwrap());
+        assert_eq!(flows[0].1, Flow::new(20.0)?);
 
-        let replica = Replica::new(3.0).unwrap();
+        let replica = Replica::new(3.0)?;
         let flows = recipe.get_materials_flow(replica);
         assert_eq!(flows.len(), 1);
-        assert_eq!(flows[0].1, Flow::new(60.0).unwrap());
+        assert_eq!(flows[0].1, Flow::new(60.0)?);
+        Ok(())
     }
 }
