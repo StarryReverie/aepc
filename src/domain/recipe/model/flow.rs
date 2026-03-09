@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::ops::{Add, Div, Mul};
 
@@ -6,10 +7,28 @@ use snafu::prelude::*;
 
 use super::{Period, Quantity, Rate, Replica};
 
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, CopyGetters)]
+#[derive(Debug, Clone, Copy, CopyGetters)]
 #[getset(get_copy = "pub")]
 pub struct Flow {
     value: f64,
+}
+
+impl PartialEq for Flow {
+    fn eq(&self, other: &Self) -> bool {
+        approx::abs_diff_eq!(self.value, other.value, epsilon = 1e-9)
+    }
+}
+
+impl Eq for Flow {}
+
+impl PartialOrd for Flow {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        if self == other {
+            Some(Ordering::Equal)
+        } else {
+            self.value.partial_cmp(&other.value)
+        }
+    }
 }
 
 impl Flow {

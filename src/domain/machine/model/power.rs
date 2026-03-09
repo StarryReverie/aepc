@@ -1,12 +1,31 @@
+use std::cmp::Ordering;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
 use getset::CopyGetters;
 use snafu::prelude::*;
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, CopyGetters)]
+#[derive(Debug, Clone, Copy, CopyGetters)]
 #[getset(get_copy = "pub")]
 pub struct Power {
     value: f64,
+}
+
+impl PartialEq for Power {
+    fn eq(&self, other: &Self) -> bool {
+        approx::abs_diff_eq!(self.value, other.value, epsilon = 1e-9)
+    }
+}
+
+impl Eq for Power {}
+
+impl PartialOrd for Power {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        if self == other {
+            Some(Ordering::Equal)
+        } else {
+            self.value.partial_cmp(&other.value)
+        }
+    }
 }
 
 impl Power {

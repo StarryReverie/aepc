@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.102"
+approx = "0.5"
 dynosaur = "0.3.0"
 getset = "0.1.6"
 snafu = "0.9.0"
