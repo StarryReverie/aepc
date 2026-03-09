@@ -15,6 +15,10 @@ impl Replica {
         ensure!(value > 0.0, ZeroOrNegativeSnafu);
         Ok(Self { value })
     }
+
+    pub fn one() -> Self {
+        Self::new(1.0).unwrap()
+    }
 }
 
 impl Display for Replica {

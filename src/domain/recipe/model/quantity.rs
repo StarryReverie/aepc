@@ -42,6 +42,15 @@ impl Div<Period> for Quantity {
     }
 }
 
+impl Div<Flow> for Quantity {
+    type Output = Period;
+
+    fn div(self, other: Flow) -> Self::Output {
+        const SECONDS_PER_MINUTE: f64 = 60.0;
+        Period::new(self.value / other.value() * SECONDS_PER_MINUTE).unwrap()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Snafu)]
 pub enum NewQuantityError {
     #[snafu(display("quantity should not be negative"))]
@@ -89,5 +98,13 @@ mod tests {
         let period = Period::new(30.0).unwrap();
         let result = quantity / period;
         assert_eq!(result.value(), 60.0);
+    }
+
+    #[test]
+    fn test_div_flow() {
+        let quantity = Quantity::new(120.0).unwrap();
+        let flow = Flow::new(60.0).unwrap();
+        let result = quantity / flow;
+        assert_eq!(result.value(), 120.0);
     }
 }

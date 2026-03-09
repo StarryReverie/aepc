@@ -41,6 +41,14 @@ impl Div<Replica> for Flow {
     }
 }
 
+impl Div<Rate> for Flow {
+    type Output = Replica;
+
+    fn div(self, other: Rate) -> Self::Output {
+        Replica::new(self.value / other.value()).unwrap()
+    }
+}
+
 impl Mul<Period> for Flow {
     type Output = Quantity;
 
@@ -94,6 +102,14 @@ mod tests {
         let replica = Replica::new(3.0).unwrap();
         let result = flow / replica;
         assert_eq!(result.value(), 40.0);
+    }
+
+    #[test]
+    fn test_div_rate() {
+        let flow = Flow::new(120.0).unwrap();
+        let rate = Rate::new(40.0).unwrap();
+        let result = flow / rate;
+        assert_eq!(result.value(), 3.0);
     }
 
     #[test]
