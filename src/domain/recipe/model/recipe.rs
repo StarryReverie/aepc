@@ -140,13 +140,11 @@ mod tests {
         let rate = recipe
             .get_product_rate(&ItemId::new("item2").unwrap())
             .unwrap();
-        assert_eq!(rate.value(), 120.0);
+        assert_eq!(rate, Rate::new(120.0).unwrap());
 
-        assert!(
-            recipe
-                .get_product_rate(&ItemId::new("nonexistent").unwrap())
-                .is_none()
-        );
+        assert!(recipe
+            .get_product_rate(&ItemId::new("nonexistent").unwrap())
+            .is_none());
     }
 
     #[test]
@@ -162,11 +160,11 @@ mod tests {
         let replica = Replica::new(1.0).unwrap();
         let flows = recipe.get_materials_flow(replica);
         assert_eq!(flows.len(), 1);
-        assert_eq!(flows[0].1.value(), 20.0);
+        assert_eq!(flows[0].1, Flow::new(20.0).unwrap());
 
         let replica = Replica::new(3.0).unwrap();
         let flows = recipe.get_materials_flow(replica);
         assert_eq!(flows.len(), 1);
-        assert_eq!(flows[0].1.value(), 60.0);
+        assert_eq!(flows[0].1, Flow::new(60.0).unwrap());
     }
 }

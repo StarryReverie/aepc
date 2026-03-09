@@ -89,7 +89,7 @@ mod tests {
         let q1 = Quantity::new(10.0).unwrap();
         let q2 = Quantity::new(20.0).unwrap();
         let result = q1 + q2;
-        assert_eq!(result.value(), 30.0);
+        assert_eq!(result, Quantity::new(30.0).unwrap());
     }
 
     #[test]
@@ -97,7 +97,7 @@ mod tests {
         let quantity = Quantity::new(30.0).unwrap();
         let period = Period::new(30.0).unwrap();
         let result = quantity / period;
-        assert_eq!(result.value(), 60.0);
+        assert_eq!(result, Flow::new(60.0).unwrap());
     }
 
     #[test]
@@ -105,6 +105,6 @@ mod tests {
         let quantity = Quantity::new(120.0).unwrap();
         let flow = Flow::new(60.0).unwrap();
         let result = quantity / flow;
-        assert_eq!(result.value(), 120.0);
+        assert_eq!(result, Period::new(120.0).unwrap());
     }
 }

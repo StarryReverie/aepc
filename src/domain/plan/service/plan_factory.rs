@@ -58,7 +58,7 @@ mod tests {
     use std::collections::HashMap;
 
     use crate::domain::machine::model::MachineId;
-    use crate::domain::recipe::model::{Period, Quantity, RecipeId};
+    use crate::domain::recipe::model::{Period, Quantity, RecipeId, Replica};
 
     use super::*;
 
@@ -72,7 +72,7 @@ mod tests {
         let plan = factory.create(&goal, flow_goal).await?;
 
         assert_eq!(plan.goal(), &goal);
-        assert_eq!(plan.replica_effective().value(), 1.0);
+        assert_eq!(plan.replica_effective(), Replica::new(1.0)?);
         assert!(plan.get_dependency(&goal).is_none());
         Ok(())
     }
@@ -96,13 +96,13 @@ mod tests {
         let i1 = factory.create(&goal, flow_goal).await?;
 
         if i1.goal() == &goal {
-            assert_eq!(i1.replica_effective().value(), 1.0);
+            assert_eq!(i1.replica_effective(), Replica::new(1.0)?);
 
             if let Some(i2) = i1.get_dependency(&ItemId::new("i2")?) {
-                assert_eq!(i2.replica_effective().value(), 2.0);
+                assert_eq!(i2.replica_effective(), Replica::new(2.0)?);
 
                 if let Some(i4) = i2.get_dependency(&ItemId::new("i4")?) {
-                    assert_eq!(i4.replica_effective().value(), 2.0);
+                    assert_eq!(i4.replica_effective(), Replica::new(2.0)?);
                 } else {
                     panic!("i4 dependency not found in i2 plan");
                 }
@@ -111,10 +111,10 @@ mod tests {
             }
 
             if let Some(i3) = i1.get_dependency(&ItemId::new("i3")?) {
-                assert_eq!(i3.replica_effective().value(), 1.0);
+                assert_eq!(i3.replica_effective(), Replica::new(1.0)?);
 
                 if let Some(i4) = i3.get_dependency(&ItemId::new("i4")?) {
-                    assert_eq!(i4.replica_effective().value(), 0.5);
+                    assert_eq!(i4.replica_effective(), Replica::new(0.5)?);
                 } else {
                     panic!("i4 dependency not found in i3 plan");
                 }

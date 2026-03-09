@@ -84,7 +84,7 @@ mod tests {
         let r1 = Rate::new(10.0).unwrap();
         let r2 = Rate::new(20.0).unwrap();
         let result = r1 + r2;
-        assert_eq!(result.value(), 30.0);
+        assert_eq!(result, Rate::new(30.0).unwrap());
     }
 
     #[test]
@@ -92,7 +92,7 @@ mod tests {
         let rate = Rate::new(40.0).unwrap();
         let replica = Replica::new(3.0).unwrap();
         let result = rate * replica;
-        assert_eq!(result.value(), 120.0);
+        assert_eq!(result, Flow::new(120.0).unwrap());
     }
 
     #[test]
@@ -100,6 +100,6 @@ mod tests {
         let replica = Replica::new(3.0).unwrap();
         let rate = Rate::new(40.0).unwrap();
         let result = replica * rate;
-        assert_eq!(result.value(), 120.0);
+        assert_eq!(result, Flow::new(120.0).unwrap());
     }
 }

@@ -143,7 +143,7 @@ mod tests {
         let replica = Replica::new(2.5).unwrap();
         let step = NormalStep::forward(goal, recipe, replica);
         let plan = Plan::normal(step, vec![]);
-        assert_eq!(plan.replica_effective().value(), 2.5);
+        assert_eq!(plan.replica_effective(), Replica::new(2.5).unwrap());
     }
 
     #[test]
@@ -153,7 +153,7 @@ mod tests {
         let replica = Replica::new(3.7).unwrap();
         let step = CyclicStep::new(goal, recipe, replica, 1);
         let plan = Plan::cyclic(step);
-        assert_eq!(plan.replica_effective().value(), 3.7);
+        assert_eq!(plan.replica_effective(), Replica::new(3.7).unwrap());
     }
 
     #[test]

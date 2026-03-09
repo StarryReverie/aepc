@@ -74,6 +74,6 @@ mod tests {
         let r1 = Replica::new(1.5).unwrap();
         let r2 = Replica::new(2.5).unwrap();
         let result = r1 + r2;
-        assert_eq!(result.value(), 4.0);
+        assert_eq!(result, Replica::new(4.0).unwrap());
     }
 }

@@ -36,10 +36,7 @@ mod tests {
     fn test_valid_power() {
         let power = Power::new(123.45).unwrap();
         assert_eq!(power.value(), 123.45);
-    }
 
-    #[test]
-    fn test_zero_power() {
         let power = Power::new(0.0).unwrap();
         assert_eq!(power.value(), 0.0);
     }

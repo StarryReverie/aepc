@@ -93,7 +93,7 @@ mod tests {
         let f1 = Flow::new(10.0).unwrap();
         let f2 = Flow::new(20.0).unwrap();
         let result = f1 + f2;
-        assert_eq!(result.value(), 30.0);
+        assert_eq!(result, Flow::new(30.0).unwrap());
     }
 
     #[test]
@@ -101,7 +101,7 @@ mod tests {
         let flow = Flow::new(120.0).unwrap();
         let replica = Replica::new(3.0).unwrap();
         let result = flow / replica;
-        assert_eq!(result.value(), 40.0);
+        assert_eq!(result, Rate::new(40.0).unwrap());
     }
 
     #[test]
@@ -109,7 +109,7 @@ mod tests {
         let flow = Flow::new(120.0).unwrap();
         let rate = Rate::new(40.0).unwrap();
         let result = flow / rate;
-        assert_eq!(result.value(), 3.0);
+        assert_eq!(result, Replica::new(3.0).unwrap());
     }
 
     #[test]
@@ -117,6 +117,6 @@ mod tests {
         let flow = Flow::new(60.0).unwrap();
         let period = Period::new(30.0).unwrap();
         let result = flow * period;
-        assert_eq!(result.value(), 30.0);
+        assert_eq!(result, Quantity::new(30.0).unwrap());
     }
 }
