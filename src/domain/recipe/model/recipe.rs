@@ -3,6 +3,7 @@ use snafu::prelude::*;
 
 use crate::domain::item::model::ItemId;
 use crate::domain::machine::model::MachineId;
+use crate::domain::recipe::model::{Flow, Rate, Replica};
 
 use super::{Period, Quantity, RecipeId};
 
@@ -45,6 +46,22 @@ impl Recipe {
             materials,
             products,
         })
+    }
+
+    pub fn get_product_rate(&self, product_id: &ItemId) -> Option<Rate> {
+        self.products
+            .iter()
+            .find(|(target, _)| target == product_id)
+            .map(|(_, quantity)| *quantity / self.period / Replica::one())
+    }
+
+    pub fn get_materials_flow(&self, replica: Replica) -> Vec<(&ItemId, Flow)> {
+        self.materials
+            .iter()
+            .map(|(material, quantity)| {
+                (material, *quantity / self.period / Replica::one() * replica)
+            })
+            .collect()
     }
 }
 
@@ -108,5 +125,48 @@ mod tests {
             Recipe::new(id, machine, period, materials, products),
             Err(NewRecipeError::DuplicateProduct),
         ));
+    }
+
+    #[test]
+    fn test_get_product_rate() {
+        let id = RecipeId::new("1").unwrap();
+        let machine = MachineId::new("1").unwrap();
+        let period = Period::new(30.0).unwrap();
+        let materials = vec![(ItemId::new("item1").unwrap(), Quantity::new(10.0).unwrap())];
+        let products = vec![(ItemId::new("item2").unwrap(), Quantity::new(60.0).unwrap())];
+
+        let recipe = Recipe::new(id, machine, period, materials, products).unwrap();
+
+        let rate = recipe
+            .get_product_rate(&ItemId::new("item2").unwrap())
+            .unwrap();
+        assert_eq!(rate.value(), 120.0);
+
+        assert!(
+            recipe
+                .get_product_rate(&ItemId::new("nonexistent").unwrap())
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn test_get_materials_flow() {
+        let id = RecipeId::new("1").unwrap();
+        let machine = MachineId::new("1").unwrap();
+        let period = Period::new(30.0).unwrap();
+        let materials = vec![(ItemId::new("item1").unwrap(), Quantity::new(10.0).unwrap())];
+        let products = vec![(ItemId::new("item2").unwrap(), Quantity::new(60.0).unwrap())];
+
+        let recipe = Recipe::new(id, machine, period, materials, products).unwrap();
+
+        let replica = Replica::new(1.0).unwrap();
+        let flows = recipe.get_materials_flow(replica);
+        assert_eq!(flows.len(), 1);
+        assert_eq!(flows[0].1.value(), 20.0);
+
+        let replica = Replica::new(3.0).unwrap();
+        let flows = recipe.get_materials_flow(replica);
+        assert_eq!(flows.len(), 1);
+        assert_eq!(flows[0].1.value(), 60.0);
     }
 }
