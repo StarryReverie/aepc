@@ -151,8 +151,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_pipeline_without_dependencies() -> AnyhowResult<()> {
-        let recipe = make_recipe("r1", "m1", 30.0, vec![], vec![("i1", 60.0)])?;
-        let factory = make_factory_with_recipes(vec![recipe])?;
+        #[rustfmt::skip]
+        let factory = {
+            let recipe = make_recipe("r1", "m1", 30.0, vec![], vec![("i1", 60.0)])?;
+            make_factory_with_recipes(vec![recipe])?
+        };
 
         let goal = ItemId::new("i1")?;
         let flow_goal = Flow::new(120.0)?;
@@ -166,17 +169,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_pipeline_with_shared_dependency() -> AnyhowResult<()> {
-        let r1 = make_recipe(
-            "r1",
-            "m1",
-            10.0,
-            vec![("i2", 10.0), ("i3", 5.0)],
-            vec![("i1", 1.0)],
-        )?;
-        let r2 = make_recipe("r2", "m2", 2.0, vec![("i4", 2.0)], vec![("i2", 1.0)])?;
-        let r3 = make_recipe("r3", "m3", 2.0, vec![("i4", 1.0)], vec![("i3", 1.0)])?;
-        let r4 = make_recipe("r4", "m4", 1.0, vec![], vec![("i4", 1.0)])?;
-        let factory = make_factory_with_recipes(vec![r1, r2, r3, r4])?;
+        #[rustfmt::skip]
+        let factory = {
+            let r1 = make_recipe("r1", "m1", 10.0, vec![("i2", 10.0), ("i3", 5.0)], vec![("i1", 1.0)])?;
+            let r2 = make_recipe("r2", "m2", 2.0, vec![("i4", 2.0)], vec![("i2", 1.0)])?;
+            let r3 = make_recipe("r3", "m3", 2.0, vec![("i4", 1.0)], vec![("i3", 1.0)])?;
+            let r4 = make_recipe("r4", "m4", 1.0, vec![], vec![("i4", 1.0)])?;
+            make_factory_with_recipes(vec![r1, r2, r3, r4])?
+        };
 
         let goal = ItemId::new("i1")?;
         let flow_goal = Flow::new(6.0)?;
@@ -217,8 +217,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_no_recipe_found() -> AnyhowResult<()> {
-        let recipe = make_recipe("r1", "m1", 10.0, vec![], vec![("i1", 1.0)])?;
-        let factory = make_factory_with_recipes(vec![recipe])?;
+        #[rustfmt::skip]
+        let factory = {
+            let recipe = make_recipe("r1", "m1", 10.0, vec![], vec![("i1", 1.0)])?;
+            make_factory_with_recipes(vec![recipe])?
+        };
 
         let goal = ItemId::new("i2")?;
         let flow_goal = Flow::new(6.0)?;
@@ -230,9 +233,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_cyclic_pipeline() -> AnyhowResult<()> {
-        let r1 = make_recipe("r1", "m1", 1.0, vec![("i2", 1.0)], vec![("i1", 2.0)])?;
-        let r2 = make_recipe("r2", "m2", 1.0, vec![("i1", 1.0)], vec![("i2", 1.0)])?;
-        let factory = make_factory_with_recipes(vec![r1, r2])?;
+        #[rustfmt::skip]
+        let factory = {
+            let r1 = make_recipe("r1", "m1", 1.0, vec![("i2", 1.0)], vec![("i1", 2.0)])?;
+            let r2 = make_recipe("r2", "m2", 1.0, vec![("i1", 1.0)], vec![("i2", 1.0)])?;
+            make_factory_with_recipes(vec![r1, r2])?
+        };
 
         let flow_goal = Flow::new(60.0)?;
         let plan = factory.create(&ItemId::new("i1")?, flow_goal).await?;
@@ -260,9 +266,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_no_recipe_found_when_cyclic_flow_exceeds_production() -> AnyhowResult<()> {
-        let r1 = make_recipe("r1", "m1", 1.0, vec![("i2", 1.0)], vec![("i1", 1.0)])?;
-        let r2 = make_recipe("r2", "m2", 1.0, vec![("i1", 1.0)], vec![("i2", 1.0)])?;
-        let factory = make_factory_with_recipes(vec![r1, r2])?;
+        #[rustfmt::skip]
+        let factory = {
+            let r1 = make_recipe("r1", "m1", 1.0, vec![("i2", 1.0)], vec![("i1", 1.0)])?;
+            let r2 = make_recipe("r2", "m2", 1.0, vec![("i1", 1.0)], vec![("i2", 1.0)])?;
+            make_factory_with_recipes(vec![r1, r2])?
+        };
 
         let goal = ItemId::new("i1")?;
         let flow_goal = Flow::new(60.0)?;
@@ -273,7 +282,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_complex_cyclic_pipeline_two_loops_with_side_products() -> AnyhowResult<()> {
+    async fn test_complex_cyclic_pipeline() -> AnyhowResult<()> {
         #[rustfmt::skip]
         let factory = {
             let r1 = make_recipe("r1", "m1", 1.0, vec![("i1", 1.0), ("i2", 1.0)], vec![("i3", 3.0)])?;
