@@ -17,7 +17,7 @@ impl Replica {
     }
 
     pub fn one() -> Self {
-        Self::new(1.0).unwrap()
+        Self::new(1.0).expect("1.0 should be positive")
     }
 }
 
@@ -31,7 +31,8 @@ impl Add for Replica {
     type Output = Replica;
 
     fn add(self, other: Self) -> Self::Output {
-        Replica::new(self.value + other.value).unwrap()
+        Replica::new(self.value + other.value)
+            .expect("the result should be positive because both operands are positive")
     }
 }
 

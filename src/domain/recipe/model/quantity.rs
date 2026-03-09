@@ -29,7 +29,8 @@ impl Add for Quantity {
     type Output = Quantity;
 
     fn add(self, other: Self) -> Self::Output {
-        Quantity::new(self.value + other.value).unwrap()
+        Quantity::new(self.value + other.value)
+            .expect("the result should be non-negative because both operands are non-negative")
     }
 }
 
@@ -38,7 +39,8 @@ impl Div<Period> for Quantity {
 
     fn div(self, other: Period) -> Self::Output {
         const SECONDS_PER_MINUTE: f64 = 60.0;
-        Flow::new(self.value / other.value() * SECONDS_PER_MINUTE).unwrap()
+        Flow::new(self.value / other.value() * SECONDS_PER_MINUTE)
+            .expect("the result should be non-negative because both operands are non-negative")
     }
 }
 
@@ -47,7 +49,8 @@ impl Div<Flow> for Quantity {
 
     fn div(self, other: Flow) -> Self::Output {
         const SECONDS_PER_MINUTE: f64 = 60.0;
-        Period::new(self.value / other.value() * SECONDS_PER_MINUTE).unwrap()
+        Period::new(self.value / other.value() * SECONDS_PER_MINUTE)
+            .expect("the result should be non-negative because both operands are non-negative")
     }
 }
 

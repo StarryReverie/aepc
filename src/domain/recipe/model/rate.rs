@@ -29,7 +29,8 @@ impl Add for Rate {
     type Output = Rate;
 
     fn add(self, other: Self) -> Self::Output {
-        Rate::new(self.value + other.value).unwrap()
+        Rate::new(self.value + other.value)
+            .expect("the result should be non-negative because both operands are non-negative")
     }
 }
 
@@ -37,7 +38,8 @@ impl Mul<Replica> for Rate {
     type Output = Flow;
 
     fn mul(self, other: Replica) -> Self::Output {
-        Flow::new(self.value * other.value()).unwrap()
+        Flow::new(self.value * other.value())
+            .expect("the result should be non-negative because both operands are non-negative")
     }
 }
 
@@ -45,7 +47,8 @@ impl Mul<Rate> for Replica {
     type Output = Flow;
 
     fn mul(self, other: Rate) -> Self::Output {
-        Flow::new(self.value() * other.value).unwrap()
+        Flow::new(self.value() * other.value)
+            .expect("the result should be non-negative because both operands are non-negative")
     }
 }
 
