@@ -1,7 +1,7 @@
 use getset::Getters;
 use snafu::prelude::*;
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Getters)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Getters)]
 #[getset(get = "pub")]
 pub struct MachineId {
     value: String,
