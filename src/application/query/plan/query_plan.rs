@@ -238,7 +238,7 @@ mod tests {
     use crate::domain::item::outbound::{DynItemRepository, ItemRepositoryMock};
     use crate::domain::machine::model::{Machine, test_helper::make_machine};
     use crate::domain::machine::outbound::{DynMachineRepository, MachineRepositoryMock};
-    use crate::domain::plan::service::{DynPlanFactory, PlanFactoryImpl};
+    use crate::domain::plan::service::{DynPlanFactory, PlanFactoryMock};
     use crate::domain::recipe::model::{Recipe, test_helper::make_recipe};
     use crate::domain::recipe::outbound::{DynRecipeRepository, RecipeRepositoryMock};
 
@@ -280,22 +280,42 @@ mod tests {
                     .answers(&|_, _| Ok(Some(m2())));
             })));
 
-        let recipe_repo = DynRecipeRepository::new_arc(Unimock::new((
-            RecipeRepositoryMock::get.stub(|each| {
+        let recipe_repo =
+            DynRecipeRepository::new_arc(Unimock::new(RecipeRepositoryMock::get.stub(|each| {
                 each.call(matching!((id) if *id == r1().id()))
                     .answers(&|_, _| Ok(Some(r1())));
                 each.call(matching!((id) if *id == r2().id()))
                     .answers(&|_, _| Ok(Some(r2())));
-            }),
-            RecipeRepositoryMock::find_containing_product.stub(|each| {
-                each.call(matching!((id) if *id == i1().id()))
-                    .answers(&|_, _| Ok(vec![r1()]));
-                each.call(matching!((id) if *id == i2().id()))
-                    .answers(&|_, _| Ok(vec![r2()]));
-            }),
-        )));
+            })));
 
-        let factory = DynPlanFactory::new_arc(PlanFactoryImpl::new(recipe_repo.clone()));
+        let factory =
+            DynPlanFactory::new_arc(Unimock::new(PlanFactoryMock::create_plan.stub(|each| {
+                each.call(matching!((goal, flow) if flow.value() == 60.0))
+                    .answers(&|_, _, _| {
+                        let i1_step = NormalStep::diverged(
+                            i1().id().clone(),
+                            r1().id().clone(),
+                            Replica::new(0.5).unwrap(),
+                            Replica::new(0.5).unwrap(),
+                        );
+                        let i2_step = NormalStep::forward(
+                            i2().id().clone(),
+                            r2().id().clone(),
+                            Replica::new(1.0).unwrap(),
+                        );
+                        let i1_cyclic_step = CyclicStep::new(
+                            i1().id().clone(),
+                            r1().id().clone(),
+                            Replica::new(0.5).unwrap(),
+                            2,
+                        );
+                        let i1_cyclic_plan = Plan::cyclic(i1_cyclic_step);
+                        let i2_plan = Plan::normal(i2_step, vec![i1_cyclic_plan]);
+                        let i1_plan = Plan::normal(i1_step, vec![i2_plan]);
+                        Ok(i1_plan)
+                    });
+            })));
+
         PlanQueryServiceImpl::new(item_repo, machine_repo, recipe_repo, factory)
     }
 

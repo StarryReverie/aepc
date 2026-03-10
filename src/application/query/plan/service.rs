@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use crate::domain::{
-    item::outbound::DynItemRepository, machine::outbound::DynMachineRepository,
-    plan::service::DynPlanFactory, recipe::outbound::DynRecipeRepository,
-};
+use crate::domain::item::outbound::DynItemRepository;
+use crate::domain::machine::outbound::DynMachineRepository;
+use crate::domain::plan::service::DynPlanFactory;
+use crate::domain::recipe::outbound::DynRecipeRepository;
 
 use super::{QueryPlanError, QueryPlanRequest, QueryPlanResponse};
 
