@@ -229,3 +229,136 @@ impl PlanQueryServiceImpl {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use unimock::*;
+
+    use crate::domain::item::model::Item;
+    use crate::domain::item::outbound::{DynItemRepository, ItemRepositoryMock};
+    use crate::domain::machine::model::Machine;
+    use crate::domain::machine::outbound::{DynMachineRepository, MachineRepositoryMock};
+    use crate::domain::plan::service::PlanFactory;
+    use crate::domain::recipe::model::{Period, Quantity};
+    use crate::domain::recipe::outbound::{DynRecipeRepository, RecipeRepositoryMock};
+
+    use super::*;
+
+    fn setup_cyclic_pipeline_mocks() -> PlanQueryServiceImpl {
+        fn i1() -> Item {
+            Item::new(ItemId::new("i1").unwrap(), ItemName::new("Item 1").unwrap())
+        }
+        fn i2() -> Item {
+            Item::new(ItemId::new("i2").unwrap(), ItemName::new("Item 2").unwrap())
+        }
+        fn m1() -> Machine {
+            Machine::new(
+                MachineId::new("m1").unwrap(),
+                MachineName::new("Machine 1").unwrap(),
+                Power::new(100.0).unwrap(),
+            )
+        }
+        fn m2() -> Machine {
+            Machine::new(
+                MachineId::new("m2").unwrap(),
+                MachineName::new("Machine 2").unwrap(),
+                Power::new(200.0).unwrap(),
+            )
+        }
+        fn r1() -> Recipe {
+            Recipe::new(
+                RecipeId::new("r1").unwrap(),
+                m1().id().clone(),
+                Period::new(1.0).unwrap(),
+                vec![(i2().id().clone(), Quantity::new(1.0).unwrap())],
+                vec![(i1().id().clone(), Quantity::new(2.0).unwrap())],
+            )
+            .unwrap()
+        }
+        fn r2() -> Recipe {
+            Recipe::new(
+                RecipeId::new("r2").unwrap(),
+                m2().id().clone(),
+                Period::new(1.0).unwrap(),
+                vec![(i1().id().clone(), Quantity::new(1.0).unwrap())],
+                vec![(i2().id().clone(), Quantity::new(1.0).unwrap())],
+            )
+            .unwrap()
+        }
+
+        let item_repo =
+            DynItemRepository::new_arc(Unimock::new(ItemRepositoryMock::get.stub(|each| {
+                each.call(matching!((id) if *id == i1().id()))
+                    .answers(&|_, _| Ok(Some(i1())));
+                each.call(matching!((id) if *id == i2().id()))
+                    .answers(&|_, _| Ok(Some(i2())));
+            })));
+
+        let machine_repo =
+            DynMachineRepository::new_arc(Unimock::new(MachineRepositoryMock::get.stub(|each| {
+                each.call(matching!((id) if *id == m1().id()))
+                    .answers(&|_, _| Ok(Some(m1())));
+                each.call(matching!((id) if *id == m2().id()))
+                    .answers(&|_, _| Ok(Some(m2())));
+            })));
+
+        let recipe_repo = DynRecipeRepository::new_arc(Unimock::new((
+            RecipeRepositoryMock::get.stub(|each| {
+                each.call(matching!((id) if *id == r1().id()))
+                    .answers(&|_, _| Ok(Some(r1())));
+                each.call(matching!((id) if *id == r2().id()))
+                    .answers(&|_, _| Ok(Some(r2())));
+            }),
+            RecipeRepositoryMock::find_containing_product.stub(|each| {
+                each.call(matching!((id) if *id == i1().id()))
+                    .answers(&|_, _| Ok(vec![r1()]));
+                each.call(matching!((id) if *id == i2().id()))
+                    .answers(&|_, _| Ok(vec![r2()]));
+            }),
+        )));
+
+        let factory = Arc::new(PlanFactory::new(recipe_repo.clone()));
+        PlanQueryServiceImpl::new(item_repo, machine_repo, recipe_repo, factory)
+    }
+
+    #[tokio::test]
+    async fn test_query_plan_with_cyclic_pipeline() {
+        let service = setup_cyclic_pipeline_mocks();
+
+        let request = QueryPlanRequest {
+            goal: ItemId::new("i1").unwrap(),
+            expected_flow: Flow::new(60.0).unwrap(),
+        };
+
+        let response = service.query_plan_impl(request).await.unwrap();
+        let detail = response.plan;
+
+        assert_eq!(*detail.flow_effective(), Flow::new(60.0).unwrap());
+        assert_eq!(*detail.flow_backward(), Some(Flow::new(60.0).unwrap()));
+        assert_eq!(*detail.replica_effective(), Replica::new(0.5).unwrap());
+        assert_eq!(*detail.replica_backward(), Some(Replica::new(0.5).unwrap()));
+        assert_eq!(*detail.cyclic_steps_ahead(), None);
+        assert_eq!(*detail.depth(), 0);
+        assert_eq!(detail.dependencies().len(), 1);
+
+        let i2_detail = &detail.dependencies()[0];
+        assert_eq!(*i2_detail.flow_effective(), Flow::new(60.0).unwrap());
+        assert_eq!(*i2_detail.flow_backward(), None);
+        assert_eq!(*i2_detail.replica_effective(), Replica::new(1.0).unwrap());
+        assert_eq!(*i2_detail.replica_backward(), None);
+        assert_eq!(*i2_detail.cyclic_steps_ahead(), None);
+        assert_eq!(*i2_detail.depth(), 1);
+        assert_eq!(i2_detail.dependencies().len(), 1);
+
+        let i1_detail = &i2_detail.dependencies()[0];
+        assert_eq!(*i1_detail.flow_effective(), Flow::new(60.0).unwrap());
+        assert_eq!(*i1_detail.flow_backward(), None);
+        assert_eq!(*i1_detail.replica_effective(), Replica::new(0.5).unwrap());
+        assert_eq!(*i1_detail.replica_backward(), None);
+        assert_eq!(*i1_detail.cyclic_steps_ahead(), Some(2));
+        assert_eq!(*i1_detail.depth(), 2);
+        assert_eq!(i1_detail.dependencies().len(), 0);
+    }
+}

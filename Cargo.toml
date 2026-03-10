@@ -10,3 +10,4 @@ dynosaur = "0.3.0"
 getset = "0.1.6"
 snafu = "0.9.0"
 tokio = { version = "1.50.0", features = ["sync", "rt", "tokio-macros", "test-util", "macros"] }
+unimock = { version = "0.6.8", features = ["mock-tokio-1"] }
