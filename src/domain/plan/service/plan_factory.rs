@@ -8,25 +8,19 @@ use crate::domain::plan::model::{CyclicStep, NormalStep, Plan};
 use crate::domain::recipe::model::{Flow, Rate, Recipe, RecipeId, Replica};
 use crate::domain::recipe::outbound::{DynRecipeRepository, RecipeRepository};
 
-pub struct PlanFactory {
+#[unimock::unimock(api = PlanFactoryMock)]
+#[dynosaur::dynosaur(pub DynPlanFactory = dyn(box) PlanFactory)]
+pub trait PlanFactory: Send + Sync {
+    async fn create_plan(&self, goal: &ItemId, flow_goal: Flow) -> Result<Plan, CreatePlanError>;
+}
+
+pub struct PlanFactoryImpl {
     recipe_repository: Arc<DynRecipeRepository<'static>>,
 }
 
-impl PlanFactory {
+impl PlanFactoryImpl {
     pub fn new(recipe_repository: Arc<DynRecipeRepository<'static>>) -> Self {
         Self { recipe_repository }
-    }
-
-    pub async fn create_plan(
-        &self,
-        goal: &ItemId,
-        flow_goal: Flow,
-    ) -> Result<Plan, CreatePlanError> {
-        let mut resolution_trace = Vec::new();
-        let (plan, _) = self
-            .make_plan(goal, flow_goal, &mut resolution_trace)
-            .await?;
-        Ok(plan)
     }
 
     async fn make_plan(
@@ -136,6 +130,16 @@ impl PlanFactory {
 
         let _ = resolution_trace.pop();
         Ok((plan, demands))
+    }
+}
+
+impl PlanFactory for PlanFactoryImpl {
+    async fn create_plan(&self, goal: &ItemId, flow_goal: Flow) -> Result<Plan, CreatePlanError> {
+        let mut resolution_trace = Vec::new();
+        let (plan, _) = self
+            .make_plan(goal, flow_goal, &mut resolution_trace)
+            .await?;
+        Ok(plan)
     }
 }
 
@@ -422,12 +426,12 @@ mod tests {
         }
     }
 
-    fn make_factory_with_recipes(recipes: Vec<Recipe>) -> AnyhowResult<PlanFactory> {
+    fn make_factory_with_recipes(recipes: Vec<Recipe>) -> AnyhowResult<PlanFactoryImpl> {
         let mut mock_repo = MockRecipeRepository::new();
         for recipe in recipes {
             mock_repo.add_recipe(recipe);
         }
         let mock_repo = DynRecipeRepository::new_arc(mock_repo);
-        Ok(PlanFactory::new(mock_repo))
+        Ok(PlanFactoryImpl::new(mock_repo))
     }
 }

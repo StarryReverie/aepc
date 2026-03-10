@@ -8,7 +8,7 @@ use crate::domain::item::outbound::ItemRepository;
 use crate::domain::machine::model::{MachineId, MachineName, Power};
 use crate::domain::machine::outbound::MachineRepository;
 use crate::domain::plan::model::{CyclicStep, NormalStep, Plan};
-use crate::domain::plan::service::CreatePlanError;
+use crate::domain::plan::service::{CreatePlanError, PlanFactory};
 use crate::domain::recipe::model::{Flow, Recipe, RecipeId, Replica};
 use crate::domain::recipe::outbound::RecipeRepository;
 
@@ -232,15 +232,13 @@ impl PlanQueryServiceImpl {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
     use unimock::*;
 
     use crate::domain::item::model::{Item, test_helper::make_item};
     use crate::domain::item::outbound::{DynItemRepository, ItemRepositoryMock};
     use crate::domain::machine::model::{Machine, test_helper::make_machine};
     use crate::domain::machine::outbound::{DynMachineRepository, MachineRepositoryMock};
-    use crate::domain::plan::service::PlanFactory;
+    use crate::domain::plan::service::{DynPlanFactory, PlanFactoryImpl};
     use crate::domain::recipe::model::{Recipe, test_helper::make_recipe};
     use crate::domain::recipe::outbound::{DynRecipeRepository, RecipeRepositoryMock};
 
@@ -297,7 +295,7 @@ mod tests {
             }),
         )));
 
-        let factory = Arc::new(PlanFactory::new(recipe_repo.clone()));
+        let factory = DynPlanFactory::new_arc(PlanFactoryImpl::new(recipe_repo.clone()));
         PlanQueryServiceImpl::new(item_repo, machine_repo, recipe_repo, factory)
     }
 

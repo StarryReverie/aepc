@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::domain::{
     item::outbound::DynItemRepository, machine::outbound::DynMachineRepository,
-    plan::service::PlanFactory, recipe::outbound::DynRecipeRepository,
+    plan::service::DynPlanFactory, recipe::outbound::DynRecipeRepository,
 };
 
 use super::{QueryPlanError, QueryPlanRequest, QueryPlanResponse};
@@ -19,7 +19,7 @@ pub struct PlanQueryServiceImpl {
     pub(super) item_repository: Arc<DynItemRepository<'static>>,
     pub(super) machine_repository: Arc<DynMachineRepository<'static>>,
     pub(super) recipe_repository: Arc<DynRecipeRepository<'static>>,
-    pub(super) plan_factory: Arc<PlanFactory>,
+    pub(super) plan_factory: Arc<DynPlanFactory<'static>>,
 }
 
 impl PlanQueryServiceImpl {
@@ -27,7 +27,7 @@ impl PlanQueryServiceImpl {
         item_repository: Arc<DynItemRepository<'static>>,
         machine_repository: Arc<DynMachineRepository<'static>>,
         recipe_repository: Arc<DynRecipeRepository<'static>>,
-        plan_factory: Arc<PlanFactory>,
+        plan_factory: Arc<DynPlanFactory<'static>>,
     ) -> Self {
         Self {
             item_repository,
