@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-use anyhow::Result as AnyhowResult;
+use anyhow::Error as AnyhowError;
+use snafu::prelude::*;
 
 use crate::domain::item::model::ItemId;
 use crate::domain::plan::model::{CyclicStep, NormalStep, Plan};
@@ -11,24 +12,16 @@ pub struct PlanFactory {
     recipe_repository: Arc<DynRecipeRepository<'static>>,
 }
 
-struct ResolutionTraceElement {
-    depth: u32,
-    goal: ItemId,
-    recipe: RecipeId,
-    rate_goal: Rate,
-}
-
-struct BackwardDemandElement {
-    goal: ItemId,
-    flow_goal: Flow,
-}
-
 impl PlanFactory {
     pub fn new(recipe_repository: Arc<DynRecipeRepository<'static>>) -> Self {
         Self { recipe_repository }
     }
 
-    pub async fn create(&self, goal: &ItemId, flow_goal: Flow) -> AnyhowResult<Plan> {
+    pub async fn create_plan(
+        &self,
+        goal: &ItemId,
+        flow_goal: Flow,
+    ) -> Result<Plan, CreatePlanError> {
         let mut resolution_trace = Vec::new();
         let (plan, _) = self
             .make_plan(goal, flow_goal, &mut resolution_trace)
@@ -41,7 +34,7 @@ impl PlanFactory {
         goal: &ItemId,
         flow_goal: Flow,
         resolution_trace: &mut Vec<ResolutionTraceElement>,
-    ) -> AnyhowResult<(Plan, Vec<BackwardDemandElement>)> {
+    ) -> Result<(Plan, Vec<BackwardDemandElement>), CreatePlanError> {
         if let Some(target) = resolution_trace.iter().rfind(|e| &e.goal == goal) {
             let plan = Plan::cyclic(CyclicStep::new(
                 goal.clone(),
@@ -56,7 +49,13 @@ impl PlanFactory {
             return Ok((plan, vec![demand]));
         }
 
-        let recipes = self.recipe_repository.find_containing_product(goal).await?;
+        let recipes = self
+            .recipe_repository
+            .find_containing_product(goal)
+            .await
+            .context(InfrastructureSnafu {
+                message: "could not query recipes",
+            })?;
 
         for recipe in &recipes {
             if let Ok(res) = self
@@ -67,7 +66,7 @@ impl PlanFactory {
             }
         }
 
-        anyhow::bail!("no recipe found for product with ID = {goal:?}")
+        (NoRecipeSnafu { goal: goal.clone() }).fail()
     }
 
     async fn make_plan_with_recipe(
@@ -76,7 +75,7 @@ impl PlanFactory {
         flow_goal: Flow,
         recipe: &Recipe,
         resolution_trace: &mut Vec<ResolutionTraceElement>,
-    ) -> AnyhowResult<(Plan, Vec<BackwardDemandElement>)> {
+    ) -> Result<(Plan, Vec<BackwardDemandElement>), CreatePlanError> {
         let rate_goal = recipe
             .get_product_rate(goal)
             .expect("the recipe should produce the goal product");
@@ -132,7 +131,7 @@ impl PlanFactory {
             Plan::normal(adjusted_step, adjusted_dependencies)
         } else {
             let _ = resolution_trace.pop();
-            anyhow::bail!("cyclic flow demanded by backward is exceeds current production");
+            return ExcessiveCyclicFlowSnafu.fail();
         };
 
         let _ = resolution_trace.pop();
@@ -140,9 +139,37 @@ impl PlanFactory {
     }
 }
 
+#[derive(Debug, Snafu)]
+#[non_exhaustive]
+pub enum CreatePlanError {
+    #[snafu(display("could not find recipe that can produce {goal:?}"))]
+    NoRecipe { goal: ItemId },
+    #[snafu(display("cyclic flow demanded by backward exceeds current production"))]
+    ExcessiveCyclicFlow,
+    #[snafu(display("infrastructure error: {message}"))]
+    Infrastructure {
+        message: String,
+        source: AnyhowError,
+    },
+}
+
+struct ResolutionTraceElement {
+    depth: u32,
+    goal: ItemId,
+    recipe: RecipeId,
+    rate_goal: Rate,
+}
+
+struct BackwardDemandElement {
+    goal: ItemId,
+    flow_goal: Flow,
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
+
+    use anyhow::Result as AnyhowResult;
 
     use crate::domain::machine::model::MachineId;
     use crate::domain::recipe::model::{Period, Quantity, RecipeId, Replica};
@@ -159,7 +186,7 @@ mod tests {
 
         let goal = ItemId::new("i1")?;
         let flow_goal = Flow::new(120.0)?;
-        let plan = factory.create(&goal, flow_goal).await?;
+        let plan = factory.create_plan(&goal, flow_goal).await?;
 
         assert_eq!(plan.goal(), &goal);
         assert_eq!(plan.replica_effective(), Replica::new(1.0)?);
@@ -180,7 +207,7 @@ mod tests {
 
         let goal = ItemId::new("i1")?;
         let flow_goal = Flow::new(6.0)?;
-        let i1 = factory.create(&goal, flow_goal).await?;
+        let i1 = factory.create_plan(&goal, flow_goal).await?;
 
         if i1.goal() == &goal {
             assert_eq!(i1.replica_effective(), Replica::new(1.0)?);
@@ -225,7 +252,7 @@ mod tests {
 
         let goal = ItemId::new("i2")?;
         let flow_goal = Flow::new(6.0)?;
-        let result = factory.create(&goal, flow_goal).await;
+        let result = factory.create_plan(&goal, flow_goal).await;
 
         assert!(result.is_err());
         Ok(())
@@ -241,7 +268,7 @@ mod tests {
         };
 
         let flow_goal = Flow::new(60.0)?;
-        let plan = factory.create(&ItemId::new("i1")?, flow_goal).await?;
+        let plan = factory.create_plan(&ItemId::new("i1")?, flow_goal).await?;
 
         if plan.goal() == &ItemId::new("i1")? {
             assert_eq!(plan.replica_effective(), Replica::new(0.5)?);
@@ -275,7 +302,7 @@ mod tests {
 
         let goal = ItemId::new("i1")?;
         let flow_goal = Flow::new(60.0)?;
-        let result = factory.create(&goal, flow_goal).await;
+        let result = factory.create_plan(&goal, flow_goal).await;
 
         assert!(result.is_err());
         Ok(())
@@ -298,7 +325,7 @@ mod tests {
 
         let goal = ItemId::new("i8")?;
         let flow_goal = Flow::new(180.0)?;
-        let plan = factory.create(&goal, flow_goal).await?;
+        let plan = factory.create_plan(&goal, flow_goal).await?;
 
         if plan.goal() == &goal {
             assert_eq!(plan.replica_effective(), Replica::new(3.0)?);
