@@ -171,8 +171,7 @@ mod tests {
 
     use anyhow::Result as AnyhowResult;
 
-    use crate::domain::machine::model::MachineId;
-    use crate::domain::recipe::model::{Period, Quantity, RecipeId, Replica};
+    use crate::domain::recipe::model::{RecipeId, Replica, test_helper::make_recipe};
 
     use super::*;
 
@@ -180,7 +179,7 @@ mod tests {
     async fn test_pipeline_without_dependencies() -> AnyhowResult<()> {
         #[rustfmt::skip]
         let factory = {
-            let recipe = make_recipe("r1", "m1", 30.0, vec![], vec![("i1", 60.0)])?;
+            let recipe = make_recipe("r1", "m1", 30.0, vec![], vec![("i1", 60.0)]);
             make_factory_with_recipes(vec![recipe])?
         };
 
@@ -198,10 +197,10 @@ mod tests {
     async fn test_pipeline_with_shared_dependency() -> AnyhowResult<()> {
         #[rustfmt::skip]
         let factory = {
-            let r1 = make_recipe("r1", "m1", 10.0, vec![("i2", 10.0), ("i3", 5.0)], vec![("i1", 1.0)])?;
-            let r2 = make_recipe("r2", "m2", 2.0, vec![("i4", 2.0)], vec![("i2", 1.0)])?;
-            let r3 = make_recipe("r3", "m3", 2.0, vec![("i4", 1.0)], vec![("i3", 1.0)])?;
-            let r4 = make_recipe("r4", "m4", 1.0, vec![], vec![("i4", 1.0)])?;
+            let r1 = make_recipe("r1", "m1", 10.0, vec![("i2", 10.0), ("i3", 5.0)], vec![("i1", 1.0)]);
+            let r2 = make_recipe("r2", "m2", 2.0, vec![("i4", 2.0)], vec![("i2", 1.0)]);
+            let r3 = make_recipe("r3", "m3", 2.0, vec![("i4", 1.0)], vec![("i3", 1.0)]);
+            let r4 = make_recipe("r4", "m4", 1.0, vec![], vec![("i4", 1.0)]);
             make_factory_with_recipes(vec![r1, r2, r3, r4])?
         };
 
@@ -246,7 +245,7 @@ mod tests {
     async fn test_no_recipe_found() -> AnyhowResult<()> {
         #[rustfmt::skip]
         let factory = {
-            let recipe = make_recipe("r1", "m1", 10.0, vec![], vec![("i1", 1.0)])?;
+            let recipe = make_recipe("r1", "m1", 10.0, vec![], vec![("i1", 1.0)]);
             make_factory_with_recipes(vec![recipe])?
         };
 
@@ -262,8 +261,8 @@ mod tests {
     async fn test_cyclic_pipeline() -> AnyhowResult<()> {
         #[rustfmt::skip]
         let factory = {
-            let r1 = make_recipe("r1", "m1", 1.0, vec![("i2", 1.0)], vec![("i1", 2.0)])?;
-            let r2 = make_recipe("r2", "m2", 1.0, vec![("i1", 1.0)], vec![("i2", 1.0)])?;
+            let r1 = make_recipe("r1", "m1", 1.0, vec![("i2", 1.0)], vec![("i1", 2.0)]);
+            let r2 = make_recipe("r2", "m2", 1.0, vec![("i1", 1.0)], vec![("i2", 1.0)]);
             make_factory_with_recipes(vec![r1, r2])?
         };
 
@@ -295,8 +294,8 @@ mod tests {
     async fn test_no_recipe_found_when_cyclic_flow_exceeds_production() -> AnyhowResult<()> {
         #[rustfmt::skip]
         let factory = {
-            let r1 = make_recipe("r1", "m1", 1.0, vec![("i2", 1.0)], vec![("i1", 1.0)])?;
-            let r2 = make_recipe("r2", "m2", 1.0, vec![("i1", 1.0)], vec![("i2", 1.0)])?;
+            let r1 = make_recipe("r1", "m1", 1.0, vec![("i2", 1.0)], vec![("i1", 1.0)]);
+            let r2 = make_recipe("r2", "m2", 1.0, vec![("i1", 1.0)], vec![("i2", 1.0)]);
             make_factory_with_recipes(vec![r1, r2])?
         };
 
@@ -312,14 +311,14 @@ mod tests {
     async fn test_complex_cyclic_pipeline() -> AnyhowResult<()> {
         #[rustfmt::skip]
         let factory = {
-            let r1 = make_recipe("r1", "m1", 1.0, vec![("i1", 1.0), ("i2", 1.0)], vec![("i3", 3.0)])?;
-            let r2 = make_recipe("r2", "m2", 1.0, vec![("i3", 1.0)], vec![("i1", 1.0)])?;
-            let r3 = make_recipe("r3", "m3", 1.0, vec![("i3", 1.0), ("i4", 1.0)], vec![("i5", 1.0)])?;
-            let r4 = make_recipe("r4", "m4", 1.0, vec![("i5", 1.0)], vec![("i2", 1.0)])?;
-            let r5 = make_recipe("r5", "m5", 1.0, vec![("i3", 1.0), ("i6", 1.0), ("i7", 1.0)], vec![("i8", 1.0)])?;
-            let r6 = make_recipe("r6", "m6", 1.0, vec![], vec![("i4", 1.0)])?;
-            let r7 = make_recipe("r7", "m7", 1.0, vec![], vec![("i6", 1.0)])?;
-            let r8 = make_recipe("r8", "m8", 1.0, vec![], vec![("i7", 1.0)])?;
+            let r1 = make_recipe("r1", "m1", 1.0, vec![("i1", 1.0), ("i2", 1.0)], vec![("i3", 3.0)]);
+            let r2 = make_recipe("r2", "m2", 1.0, vec![("i3", 1.0)], vec![("i1", 1.0)]);
+            let r3 = make_recipe("r3", "m3", 1.0, vec![("i3", 1.0), ("i4", 1.0)], vec![("i5", 1.0)]);
+            let r4 = make_recipe("r4", "m4", 1.0, vec![("i5", 1.0)], vec![("i2", 1.0)]);
+            let r5 = make_recipe("r5", "m5", 1.0, vec![("i3", 1.0), ("i6", 1.0), ("i7", 1.0)], vec![("i8", 1.0)]);
+            let r6 = make_recipe("r6", "m6", 1.0, vec![], vec![("i4", 1.0)]);
+            let r7 = make_recipe("r7", "m7", 1.0, vec![], vec![("i6", 1.0)]);
+            let r8 = make_recipe("r8", "m8", 1.0, vec![], vec![("i7", 1.0)]);
             make_factory_with_recipes(vec![r1, r2, r3, r4, r5, r6, r7, r8])?
         };
 
@@ -421,32 +420,6 @@ mod tests {
             }
             Ok(result)
         }
-    }
-
-    fn make_recipe(
-        recipe_id: &str,
-        machine_id: &str,
-        period: f64,
-        materials: Vec<(&str, f64)>,
-        products: Vec<(&str, f64)>,
-    ) -> AnyhowResult<Recipe> {
-        let materials = materials
-            .into_iter()
-            .map(|(id, qty)| Ok((ItemId::new(id)?, Quantity::new(qty)?)))
-            .collect::<AnyhowResult<Vec<_>>>()?;
-
-        let products = products
-            .into_iter()
-            .map(|(id, qty)| Ok((ItemId::new(id)?, Quantity::new(qty)?)))
-            .collect::<AnyhowResult<Vec<_>>>()?;
-
-        Ok(Recipe::new(
-            RecipeId::new(recipe_id)?,
-            MachineId::new(machine_id)?,
-            Period::new(period)?,
-            materials,
-            products,
-        )?)
     }
 
     fn make_factory_with_recipes(recipes: Vec<Recipe>) -> AnyhowResult<PlanFactory> {

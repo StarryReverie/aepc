@@ -236,56 +236,34 @@ mod tests {
 
     use unimock::*;
 
-    use crate::domain::item::model::Item;
+    use crate::domain::item::model::{Item, test_helper::make_item};
     use crate::domain::item::outbound::{DynItemRepository, ItemRepositoryMock};
-    use crate::domain::machine::model::Machine;
+    use crate::domain::machine::model::{Machine, test_helper::make_machine};
     use crate::domain::machine::outbound::{DynMachineRepository, MachineRepositoryMock};
     use crate::domain::plan::service::PlanFactory;
-    use crate::domain::recipe::model::{Period, Quantity};
+    use crate::domain::recipe::model::{Recipe, test_helper::make_recipe};
     use crate::domain::recipe::outbound::{DynRecipeRepository, RecipeRepositoryMock};
 
     use super::*;
 
     fn setup_cyclic_pipeline_mocks() -> PlanQueryServiceImpl {
         fn i1() -> Item {
-            Item::new(ItemId::new("i1").unwrap(), ItemName::new("Item 1").unwrap())
+            make_item("i1", "Item 1")
         }
         fn i2() -> Item {
-            Item::new(ItemId::new("i2").unwrap(), ItemName::new("Item 2").unwrap())
+            make_item("i2", "Item 2")
         }
         fn m1() -> Machine {
-            Machine::new(
-                MachineId::new("m1").unwrap(),
-                MachineName::new("Machine 1").unwrap(),
-                Power::new(100.0).unwrap(),
-            )
+            make_machine("m1", "Machine 1", 100.0)
         }
         fn m2() -> Machine {
-            Machine::new(
-                MachineId::new("m2").unwrap(),
-                MachineName::new("Machine 2").unwrap(),
-                Power::new(200.0).unwrap(),
-            )
+            make_machine("m2", "Machine 2", 200.0)
         }
         fn r1() -> Recipe {
-            Recipe::new(
-                RecipeId::new("r1").unwrap(),
-                m1().id().clone(),
-                Period::new(1.0).unwrap(),
-                vec![(i2().id().clone(), Quantity::new(1.0).unwrap())],
-                vec![(i1().id().clone(), Quantity::new(2.0).unwrap())],
-            )
-            .unwrap()
+            make_recipe("r1", "m1", 1.0, vec![("i2", 1.0)], vec![("i1", 2.0)])
         }
         fn r2() -> Recipe {
-            Recipe::new(
-                RecipeId::new("r2").unwrap(),
-                m2().id().clone(),
-                Period::new(1.0).unwrap(),
-                vec![(i1().id().clone(), Quantity::new(1.0).unwrap())],
-                vec![(i2().id().clone(), Quantity::new(1.0).unwrap())],
-            )
-            .unwrap()
+            make_recipe("r2", "m2", 1.0, vec![("i1", 1.0)], vec![("i2", 1.0)])
         }
 
         let item_repo =
