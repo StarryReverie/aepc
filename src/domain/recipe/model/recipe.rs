@@ -66,6 +66,7 @@ impl Recipe {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Snafu)]
+#[non_exhaustive]
 pub enum NewRecipeError {
     #[snafu(display("recipe must have at least one product"))]
     NoProducts,
@@ -145,11 +146,9 @@ mod tests {
         let rate = recipe.get_product_rate(&ItemId::new("item2")?).unwrap();
         assert_eq!(rate, Rate::new(120.0)?);
 
-        assert!(
-            recipe
-                .get_product_rate(&ItemId::new("nonexistent")?)
-                .is_none()
-        );
+        assert!(recipe
+            .get_product_rate(&ItemId::new("nonexistent")?)
+            .is_none());
         Ok(())
     }
 

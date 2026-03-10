@@ -24,6 +24,7 @@ impl ItemId {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Snafu)]
+#[non_exhaustive]
 pub enum NewItemIdError {
     #[snafu(display("item ID should not be empty"))]
     Empty,

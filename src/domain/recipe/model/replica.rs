@@ -56,6 +56,7 @@ impl Add for Replica {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Snafu)]
+#[non_exhaustive]
 pub enum NewReplicaError {
     #[snafu(display("replica should be positive"))]
     ZeroOrNegative,

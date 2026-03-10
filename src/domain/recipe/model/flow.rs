@@ -86,6 +86,7 @@ impl Mul<Period> for Flow {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Snafu)]
+#[non_exhaustive]
 pub enum NewFlowError {
     #[snafu(display("flow should not be negative"))]
     Negative,

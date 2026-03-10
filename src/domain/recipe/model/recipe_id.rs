@@ -24,6 +24,7 @@ impl RecipeId {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Snafu)]
+#[non_exhaustive]
 pub enum NewRecipeIdError {
     #[snafu(display("recipe ID should not be empty"))]
     Empty,

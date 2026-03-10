@@ -24,6 +24,7 @@ impl Display for ItemName {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Snafu)]
+#[non_exhaustive]
 pub enum NewItemNameError {
     #[snafu(display("item name should not be empty"))]
     Empty,

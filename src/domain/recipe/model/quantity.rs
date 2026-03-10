@@ -74,6 +74,7 @@ impl Div<Flow> for Quantity {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Snafu)]
+#[non_exhaustive]
 pub enum NewQuantityError {
     #[snafu(display("quantity should not be negative"))]
     Negative,

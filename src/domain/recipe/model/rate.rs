@@ -72,6 +72,7 @@ impl Mul<Rate> for Replica {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Snafu)]
+#[non_exhaustive]
 pub enum NewRateError {
     #[snafu(display("rate should not be negative"))]
     Negative,

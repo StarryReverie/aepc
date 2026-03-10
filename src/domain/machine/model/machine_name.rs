@@ -18,6 +18,7 @@ impl MachineName {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Snafu)]
+#[non_exhaustive]
 pub enum NewMachineNameError {
     #[snafu(display("machine name should not be empty"))]
     Empty,

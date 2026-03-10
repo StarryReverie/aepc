@@ -42,6 +42,7 @@ impl Display for Power {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Snafu)]
+#[non_exhaustive]
 pub enum NewPowerError {
     #[snafu(display("power should not be negative"))]
     Negative,

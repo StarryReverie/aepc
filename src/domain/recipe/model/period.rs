@@ -42,6 +42,7 @@ impl Display for Period {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Snafu)]
+#[non_exhaustive]
 pub enum NewPeriodError {
     #[snafu(display("period should be positive"))]
     ZeroOrNegative,
