@@ -11,7 +11,11 @@ use crate::domain::recipe::outbound::{DynRecipeRepository, RecipeRepository};
 #[unimock::unimock(api = PlanFactoryMock)]
 #[dynosaur::dynosaur(pub DynPlanFactory = dyn(box) PlanFactory)]
 pub trait PlanFactory: Send + Sync {
-    async fn create_plan(&self, goal: &ItemId, flow_goal: Flow) -> Result<Plan, CreatePlanError>;
+    fn create_plan(
+        &self,
+        goal: &ItemId,
+        flow_goal: Flow,
+    ) -> impl Future<Output = Result<Plan, CreatePlanError>> + Send;
 }
 
 pub struct PlanFactoryImpl {

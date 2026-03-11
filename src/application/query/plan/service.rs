@@ -9,10 +9,10 @@ use super::{QueryPlanError, QueryPlanRequest, QueryPlanResponse};
 
 #[dynosaur::dynosaur(pub DynPlanQueryService = dyn(box) PlanQueryService)]
 pub trait PlanQueryService: Send + Sync {
-    async fn query_plan(
+    fn query_plan(
         &self,
         request: QueryPlanRequest,
-    ) -> Result<QueryPlanResponse, QueryPlanError>;
+    ) -> impl Future<Output = Result<QueryPlanResponse, QueryPlanError>> + Send;
 }
 
 pub struct PlanQueryServiceImpl {
