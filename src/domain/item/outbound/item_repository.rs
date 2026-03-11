@@ -6,4 +6,6 @@ use crate::domain::item::model::{Item, ItemId};
 #[dynosaur::dynosaur(pub DynItemRepository = dyn(box) ItemRepository)]
 pub trait ItemRepository: Send + Sync {
     fn get(&self, item_id: &ItemId) -> impl Future<Output = AnyhowResult<Option<Item>>> + Send;
+
+    fn get_all(&self) -> impl Future<Output = AnyhowResult<Vec<Item>>> + Send;
 }
