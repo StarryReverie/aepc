@@ -5,6 +5,7 @@ use crate::domain::item::outbound::DynItemRepository;
 
 use super::QueryAllItemsError;
 
+#[unimock::unimock(api = ItemQueryServiceMock)]
 #[dynosaur::dynosaur(pub DynItemQueryService = dyn(box) ItemQueryService)]
 pub trait ItemQueryService: Send + Sync {
     fn query_all_items(&self)

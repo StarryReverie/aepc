@@ -7,6 +7,7 @@ use crate::domain::recipe::outbound::DynRecipeRepository;
 
 use super::{QueryPlanError, QueryPlanRequest, QueryPlanResponse};
 
+#[unimock::unimock(api = PlanQueryServiceMock)]
 #[dynosaur::dynosaur(pub DynPlanQueryService = dyn(box) PlanQueryService)]
 pub trait PlanQueryService: Send + Sync {
     fn query_plan(

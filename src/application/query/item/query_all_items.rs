@@ -28,7 +28,8 @@ mod tests {
     use unimock::*;
 
     use crate::domain::item::model::{Item, test_helper::make_item};
-    use crate::domain::item::outbound::{DynItemRepository, ItemRepositoryMock};
+    use crate::domain::item::outbound::test_helper::ItemRepositoryMock;
+    use crate::domain::item::outbound::DynItemRepository;
 
     use super::*;
 
