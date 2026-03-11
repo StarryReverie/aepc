@@ -30,7 +30,7 @@ pub enum QueryPlanError {
     Plan { source: CreatePlanError },
     #[snafu(display("entity not found: {entity}"))]
     NotFound { entity: String },
-    #[snafu(display("query plan error from infrastructure: {message}"))]
+    #[snafu(display("infrastructure error when querying plan: {message}"))]
     Infrastructure {
         message: String,
         source: AnyhowError,
