@@ -6,8 +6,11 @@ edition = "2024"
 [dependencies]
 anyhow = "1.0.102"
 approx = "0.5"
+crossterm = { version = "0.29.0", features = ["event-stream"] }
 dynosaur = "0.3.0"
+futures = "0.3"
 getset = "0.1.6"
+ratatui = "0.30.0"
 snafu = "0.9.0"
 tokio = { version = "1.50.0", features = ["sync", "rt", "tokio-macros", "test-util", "macros"] }
 unimock = { version = "0.6.8", features = ["mock-tokio-1"] }
