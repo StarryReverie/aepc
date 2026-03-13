@@ -5,17 +5,22 @@ use ratatui::crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::Rect;
 use ratatui::widgets::Widget;
 
+use crate::ui::component::PlanTabComponent;
 use crate::ui::state::AppAction;
 
 use super::Component;
 
 pub struct AppComponent {
+    plan_tab: PlanTabComponent,
     app_requester: Sender<AppAction>,
 }
 
 impl AppComponent {
-    pub fn new(app_requester: Sender<AppAction>) -> Self {
-        Self { app_requester }
+    pub fn new(plan_tab: PlanTabComponent, app_requester: Sender<AppAction>) -> Self {
+        Self {
+            plan_tab,
+            app_requester,
+        }
     }
 }
 
@@ -25,7 +30,9 @@ impl Component for AppComponent {
             KeyCode::Char('q') => {
                 let _ = self.app_requester.try_send(AppAction::Quit);
             }
-            _ => {}
+            _ => {
+                self.plan_tab.handle_input(key);
+            }
         }
     }
 }
@@ -35,6 +42,6 @@ impl Widget for &AppComponent {
     where
         Self: Sized,
     {
-        "Hello World".render(area, buf);
+        self.plan_tab.render(area, buf);
     }
 }

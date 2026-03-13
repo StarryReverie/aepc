@@ -1,6 +1,8 @@
 mod app;
+mod plan_tab;
 
 pub use app::AppComponent;
+pub use plan_tab::PlanTabComponent;
 
 use ratatui::crossterm::event::KeyEvent;
 use ratatui::widgets::Widget;

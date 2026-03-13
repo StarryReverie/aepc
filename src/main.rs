@@ -48,7 +48,8 @@ where
 fn setup() -> (AppComponent, State<AppState>) {
     let (app_manager, app_requester) = AppStateManager::new();
 
-    let app = AppComponent::new(app_requester);
+    let plan_tab = PlanTabComponent::new();
+    let app = AppComponent::new(plan_tab, app_requester);
 
     let app_state = app_manager.state();
 
