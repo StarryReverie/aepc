@@ -2,23 +2,29 @@ use tokio::sync::mpsc::Sender;
 
 use ratatui::buffer::Buffer;
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
-use ratatui::layout::Rect;
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::widgets::Widget;
 
-use crate::ui::component::PlanTabComponent;
+use crate::ui::component::{PlanTabComponent, StatusBarComponent};
 use crate::ui::state::AppAction;
 
 use super::Component;
 
 pub struct AppComponent {
     plan_tab: PlanTabComponent,
+    status_bar: StatusBarComponent,
     app_requester: Sender<AppAction>,
 }
 
 impl AppComponent {
-    pub fn new(plan_tab: PlanTabComponent, app_requester: Sender<AppAction>) -> Self {
+    pub fn new(
+        plan_tab: PlanTabComponent,
+        status_bar: StatusBarComponent,
+        app_requester: Sender<AppAction>,
+    ) -> Self {
         Self {
             plan_tab,
+            status_bar,
             app_requester,
         }
     }
@@ -42,6 +48,13 @@ impl Widget for &AppComponent {
     where
         Self: Sized,
     {
-        self.plan_tab.render(area, buf);
+        let layout = Layout::new(
+            Direction::Vertical,
+            [Constraint::Min(0), Constraint::Length(3)],
+        )
+        .split(area);
+
+        self.plan_tab.render(layout[0], buf);
+        self.status_bar.render(layout[1], buf);
     }
 }

@@ -49,7 +49,8 @@ fn setup() -> (AppComponent, State<AppState>) {
     let (app_manager, app_requester) = AppStateManager::new();
 
     let plan_tab = PlanTabComponent::new();
-    let app = AppComponent::new(plan_tab, app_requester);
+    let status_bar = StatusBarComponent::new(app_manager.state());
+    let app = AppComponent::new(plan_tab, status_bar, app_requester);
 
     let app_state = app_manager.state();
 
