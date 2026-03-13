@@ -32,7 +32,7 @@ where
                 app.handle_input(&key);
             }
             Ok(app_state) = app_state.watch() => {
-                if app_state.running() == false {
+                if !app_state.running() {
                     break Ok(());
                 }
             }

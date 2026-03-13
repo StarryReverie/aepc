@@ -9,6 +9,7 @@ use crate::ui::state::PlanTabAction;
 use super::Component;
 
 pub struct PlanTabComponent {
+    #[expect(dead_code)]
     plan_tab_requester: Sender<PlanTabAction>,
 }
 
@@ -20,6 +21,7 @@ impl PlanTabComponent {
 
 impl Component for PlanTabComponent {
     fn handle_input(&self, key: &KeyEvent) {
+        #[expect(clippy::match_single_binding)]
         match &key.code {
             _ => {}
         }
