@@ -1,7 +1,9 @@
 use getset::{CopyGetters, Getters};
-use tokio::sync::mpsc::{self, Receiver, Sender};
+use tokio::sync::mpsc::{self, Receiver};
 
 use crate::infrastructure::util::state::{State, StateSource};
+
+use super::{StateManager, StateManagerContext};
 
 const INIT_STATUS_TEXT: &str = "Welcome to aepc ('Arknights: Endfield' Pipeline Calculator)";
 
@@ -43,27 +45,11 @@ pub struct AppStateManager {
 }
 
 impl AppStateManager {
-    pub fn new() -> (Self, Sender<AppAction>) {
+    pub fn context() -> StateManagerContext<Self> {
         let (requester, actions) = mpsc::channel(32);
         let (source, _) = StateSource::new(AppState::default());
-        let res = Self { source, actions };
-        (res, requester)
-    }
-
-    pub fn state(&self) -> State<AppState> {
-        self.source.subscribe()
-    }
-
-    pub fn run(mut self) {
-        tokio::spawn(async move {
-            loop {
-                tokio::select! {
-                    Some(action) = self.actions.recv() => {
-                        self.handle_action(action);
-                    }
-                }
-            }
-        });
+        let manager = Self { source, actions };
+        StateManagerContext::new(manager, requester)
     }
 
     fn handle_action(&mut self, action: AppAction) {
@@ -93,6 +79,28 @@ impl AppStateManager {
     }
 }
 
+impl StateManager for AppStateManager {
+    type State = AppState;
+
+    type Action = AppAction;
+
+    fn state(&self) -> State<AppState> {
+        self.source.subscribe()
+    }
+
+    fn run(mut self) {
+        tokio::spawn(async move {
+            loop {
+                tokio::select! {
+                    Some(action) = self.actions.recv() => {
+                        self.handle_action(action);
+                    }
+                }
+            }
+        });
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use tokio::time::Duration;
@@ -101,10 +109,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_quit_action() {
-        let (manager, requester) = AppStateManager::new();
-        let mut state = manager.state();
+        let context = AppStateManager::context();
+        let mut state = context.state();
+        let requester = context.requester();
 
-        manager.run();
+        context.run();
         requester.send(AppAction::Quit).await.unwrap();
 
         tokio::time::sleep(Duration::from_millis(100)).await;
@@ -114,10 +123,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_set_status_info() {
-        let (manager, requester) = AppStateManager::new();
-        let mut state = manager.state();
+        let context = AppStateManager::context();
+        let mut state = context.state();
+        let requester = context.requester();
 
-        manager.run();
+        context.run();
         requester
             .send(AppAction::SetStatus {
                 text: "Info message".to_string(),
@@ -134,10 +144,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_set_status_error() {
-        let (manager, requester) = AppStateManager::new();
-        let mut state = manager.state();
+        let context = AppStateManager::context();
+        let mut state = context.state();
+        let requester = context.requester();
 
-        manager.run();
+        context.run();
         requester
             .send(AppAction::SetStatus {
                 text: "Error message".to_string(),

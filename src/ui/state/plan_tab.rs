@@ -1,9 +1,11 @@
 use getset::{CopyGetters, Getters};
-use tokio::sync::mpsc::{self, Receiver, Sender};
+use tokio::sync::mpsc::{self, Receiver};
 
 use crate::domain::item::model::ItemId;
 use crate::domain::recipe::model::Flow;
 use crate::infrastructure::util::state::{State, StateSource};
+
+use super::{StateManager, StateManagerContext};
 
 #[derive(Debug, Clone, PartialEq, Eq, Getters, CopyGetters)]
 pub struct PlanTabState {
@@ -44,27 +46,11 @@ pub struct PlanTabStateManager {
 }
 
 impl PlanTabStateManager {
-    pub fn new() -> (Self, Sender<PlanTabAction>) {
+    pub fn context() -> StateManagerContext<Self> {
         let (requester, actions) = mpsc::channel(32);
         let (source, _) = StateSource::new(PlanTabState::default());
-        let res = Self { source, actions };
-        (res, requester)
-    }
-
-    pub fn state(&self) -> State<PlanTabState> {
-        self.source.subscribe()
-    }
-
-    pub fn run(mut self) {
-        tokio::spawn(async move {
-            loop {
-                tokio::select! {
-                    Some(action) = self.actions.recv() => {
-                        self.handle_action(action);
-                    }
-                }
-            }
-        });
+        let manager = Self { source, actions };
+        StateManagerContext::new(manager, requester)
     }
 
     fn handle_action(&mut self, action: PlanTabAction) {
@@ -106,6 +92,28 @@ impl PlanTabStateManager {
     }
 }
 
+impl StateManager for PlanTabStateManager {
+    type State = PlanTabState;
+
+    type Action = PlanTabAction;
+
+    fn state(&self) -> State<PlanTabState> {
+        self.source.subscribe()
+    }
+
+    fn run(mut self) {
+        tokio::spawn(async move {
+            loop {
+                tokio::select! {
+                    Some(action) = self.actions.recv() => {
+                        self.handle_action(action);
+                    }
+                }
+            }
+        });
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use tokio::time::Duration;
@@ -114,10 +122,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_update_expected_goal_item() {
-        let (manager, requester) = PlanTabStateManager::new();
-        let mut state = manager.state();
+        let context = PlanTabStateManager::context();
+        let mut state = context.state();
+        let requester = context.requester();
 
-        manager.run();
+        context.run();
 
         let item_id = ItemId::new("test_item".to_string()).unwrap();
         requester
@@ -132,10 +141,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_update_expected_goal_flow() {
-        let (manager, requester) = PlanTabStateManager::new();
-        let mut state = manager.state();
+        let context = PlanTabStateManager::context();
+        let mut state = context.state();
+        let requester = context.requester();
 
-        manager.run();
+        context.run();
 
         let flow = Flow::new(100.0).unwrap();
         requester
@@ -150,10 +160,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_switch_focus() {
-        let (manager, requester) = PlanTabStateManager::new();
-        let mut state = manager.state();
+        let context = PlanTabStateManager::context();
+        let mut state = context.state();
+        let requester = context.requester();
 
-        manager.run();
+        context.run();
 
         requester.send(PlanTabAction::SwitchFocus).await.unwrap();
 

@@ -8,7 +8,7 @@ use ratatui::crossterm::event::{Event, EventStream};
 
 use aepc::infrastructure::util::state::State;
 use aepc::ui::component::*;
-use aepc::ui::state::{AppState, AppStateManager};
+use aepc::ui::state::*;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> AnyhowResult<()> {
@@ -46,15 +46,17 @@ where
 }
 
 fn setup() -> (AppComponent, State<AppState>) {
-    let (app_manager, app_requester) = AppStateManager::new();
+    let app_context = AppStateManager::context();
+    let plan_tab_context = PlanTabStateManager::context();
 
-    let plan_tab = PlanTabComponent::new();
-    let status_bar = StatusBarComponent::new(app_manager.state());
-    let app = AppComponent::new(plan_tab, status_bar, app_requester);
+    let plan_tab = PlanTabComponent::new(plan_tab_context.requester());
+    let status_bar = StatusBarComponent::new(app_context.state());
+    let app = AppComponent::new(plan_tab, status_bar, app_context.requester());
 
-    let app_state = app_manager.state();
+    let app_state = app_context.state();
 
-    app_manager.run();
+    app_context.run();
+    plan_tab_context.run();
 
     (app, app_state)
 }

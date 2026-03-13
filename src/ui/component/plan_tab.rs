@@ -2,14 +2,19 @@ use ratatui::buffer::Buffer;
 use ratatui::crossterm::event::KeyEvent;
 use ratatui::layout::Rect;
 use ratatui::widgets::{Block, BorderType, Borders, Paragraph, Widget};
+use tokio::sync::mpsc::Sender;
+
+use crate::ui::state::PlanTabAction;
 
 use super::Component;
 
-pub struct PlanTabComponent {}
+pub struct PlanTabComponent {
+    plan_tab_requester: Sender<PlanTabAction>,
+}
 
 impl PlanTabComponent {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(plan_tab_requester: Sender<PlanTabAction>) -> Self {
+        Self { plan_tab_requester }
     }
 }
 
