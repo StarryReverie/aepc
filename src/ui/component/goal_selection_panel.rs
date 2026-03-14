@@ -1,5 +1,5 @@
 use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::KeyEvent;
+use ratatui::crossterm::event::Event;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::widgets::{Block, BorderType, Borders, Paragraph, Widget};
 
@@ -26,10 +26,10 @@ impl GoalSelectionPanelComponent {
 }
 
 impl Component for GoalSelectionPanelComponent {
-    fn handle_input(&self, key: &KeyEvent) {
+    fn handle_input(&self, input: &Event) {
         match self.plan_tab_state.get().focus() {
             PlanTabFocus::GoalFlowInput => {
-                self.goal_flow_input.handle_input(key);
+                self.goal_flow_input.handle_input(input);
             }
             _ => {}
         }

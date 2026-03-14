@@ -1,5 +1,5 @@
 use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyCode, KeyEvent};
+use ratatui::crossterm::event::{Event, KeyCode};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::widgets::{Block, Widget};
 use tokio::sync::mpsc::Sender;
@@ -31,14 +31,14 @@ impl PlanTabComponent {
 }
 
 impl Component for PlanTabComponent {
-    fn handle_input(&self, key: &KeyEvent) {
-        match key.code {
-            KeyCode::Tab => {
+    fn handle_input(&self, input: &Event) {
+        match input {
+            Event::Key(key) if key.code == KeyCode::Tab => {
                 let _ = self
                     .plan_tab_requester
                     .try_send(PlanTabAction::SwitchFocusToNext);
             }
-            KeyCode::BackTab => {
+            Event::Key(key) if key.code == KeyCode::BackTab => {
                 let _ = self
                     .plan_tab_requester
                     .try_send(PlanTabAction::SwitchFocusToPrevious);
@@ -47,7 +47,7 @@ impl Component for PlanTabComponent {
                 PlanTabFocus::GoalFlowInput
                 | PlanTabFocus::GoalItemSearchInput
                 | PlanTabFocus::GoalItemSearchList => {
-                    self.goal_selection_panel.handle_input(key);
+                    self.goal_selection_panel.handle_input(input);
                 }
                 _ => {}
             },

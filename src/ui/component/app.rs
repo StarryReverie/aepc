@@ -1,9 +1,8 @@
-use tokio::sync::mpsc::Sender;
-
 use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyCode, KeyEvent};
+use ratatui::crossterm::event::{Event, KeyCode};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::widgets::Widget;
+use tokio::sync::mpsc::Sender;
 
 use crate::ui::component::{PlanTabComponent, StatusBarComponent};
 use crate::ui::state::AppAction;
@@ -31,13 +30,13 @@ impl AppComponent {
 }
 
 impl Component for AppComponent {
-    fn handle_input(&self, key: &KeyEvent) {
-        match &key.code {
-            KeyCode::Char('q') => {
+    fn handle_input(&self, input: &Event) {
+        match input {
+            Event::Key(key) if key.code == KeyCode::Char('q') => {
                 let _ = self.app_requester.try_send(AppAction::Quit);
             }
             _ => {
-                self.plan_tab.handle_input(key);
+                self.plan_tab.handle_input(input);
             }
         }
     }

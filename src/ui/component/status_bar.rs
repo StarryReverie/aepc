@@ -1,5 +1,5 @@
 use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::KeyEvent;
+use ratatui::crossterm::event::Event;
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Style};
 use ratatui::text::Span;
@@ -21,7 +21,7 @@ impl StatusBarComponent {
 }
 
 impl Component for StatusBarComponent {
-    fn handle_input(&self, _key: &KeyEvent) {}
+    fn handle_input(&self, _input: &Event) {}
 }
 
 impl Widget for &StatusBarComponent {

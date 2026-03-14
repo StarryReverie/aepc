@@ -1,5 +1,5 @@
 use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::KeyEvent;
+use ratatui::crossterm::event::Event;
 use ratatui::layout::Rect;
 use ratatui::widgets::Widget;
 use tokio::sync::mpsc::Sender;
@@ -32,8 +32,8 @@ impl GoalFlowInputComponent {
 }
 
 impl Component for GoalFlowInputComponent {
-    fn handle_input(&self, key: &KeyEvent) {
-        self.text_input.handle_input(key);
+    fn handle_input(&self, input: &Event) {
+        self.text_input.handle_input(input);
     }
 }
 

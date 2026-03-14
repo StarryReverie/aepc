@@ -1,6 +1,6 @@
 use getset::Getters;
 use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyCode, KeyEvent};
+use ratatui::crossterm::event::{Event, KeyCode};
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -66,20 +66,23 @@ impl TextInputUtilComponent {
         (requester, state)
     }
 
-    pub fn handle_input(&self, key: &KeyEvent) {
-        match key.code {
-            KeyCode::Char(c) => {
-                let _ = self.requester.try_send(TextInputAction::Input(c));
-            }
-            KeyCode::Backspace => {
-                let _ = self.requester.try_send(TextInputAction::Backspace);
-            }
-            KeyCode::Enter => {
-                let _ = self.requester.try_send(TextInputAction::Confirm);
-            }
-            KeyCode::Esc => {
-                let _ = self.requester.try_send(TextInputAction::Clear);
-            }
+    pub fn handle_input(&self, input: &Event) {
+        match input {
+            Event::Key(key) => match key.code {
+                KeyCode::Char(c) => {
+                    let _ = self.requester.try_send(TextInputAction::Input(c));
+                }
+                KeyCode::Backspace => {
+                    let _ = self.requester.try_send(TextInputAction::Backspace);
+                }
+                KeyCode::Enter => {
+                    let _ = self.requester.try_send(TextInputAction::Confirm);
+                }
+                KeyCode::Esc => {
+                    let _ = self.requester.try_send(TextInputAction::Clear);
+                }
+                _ => {}
+            },
             _ => {}
         }
     }

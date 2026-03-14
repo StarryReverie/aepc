@@ -4,7 +4,7 @@ use anyhow::Result as AnyhowResult;
 use futures::StreamExt;
 use ratatui::Terminal;
 use ratatui::backend::Backend;
-use ratatui::crossterm::event::{Event, EventStream};
+use ratatui::crossterm::event::EventStream;
 
 use aepc::infrastructure::util::state::State;
 use aepc::ui::component::*;
@@ -28,8 +28,8 @@ where
     let mut event = EventStream::new();
     loop {
         tokio::select! {
-            Some(Ok(Event::Key(key))) = event.next() => {
-                app.handle_input(&key);
+            Some(Ok(input)) = event.next() => {
+                app.handle_input(&input);
             }
             Ok(app_state) = app_state.watch() => {
                 if !app_state.running() {
