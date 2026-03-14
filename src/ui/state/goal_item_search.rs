@@ -1,8 +1,7 @@
 use getset::Getters;
 use tokio::sync::mpsc::{self, Receiver};
 
-use crate::infrastructure::util::state::{State, StateSource};
-use crate::ui::state::{StateManager, StateManagerContext};
+use crate::infrastructure::util::state::{State, StateManager, StateManagerContext, StateSource};
 
 #[derive(Debug, Clone, PartialEq, Eq, Getters)]
 pub struct GoalItemSearchState {

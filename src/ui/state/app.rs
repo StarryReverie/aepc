@@ -1,9 +1,7 @@
 use getset::{CopyGetters, Getters};
 use tokio::sync::mpsc::{self, Receiver};
 
-use crate::infrastructure::util::state::{State, StateSource};
-
-use super::{StateManager, StateManagerContext};
+use crate::infrastructure::util::state::{State, StateManager, StateManagerContext, StateSource};
 
 const INIT_STATUS_TEXT: &str = "Welcome to aepc ('Arknights: Endfield' Pipeline Calculator)";
 
