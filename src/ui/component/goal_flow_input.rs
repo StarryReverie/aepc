@@ -1,61 +1,39 @@
 use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyCode, KeyEvent};
+use ratatui::crossterm::event::KeyEvent;
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, BorderType, Borders, Paragraph, Widget};
+use ratatui::widgets::Widget;
 use tokio::sync::mpsc::Sender;
 
+use crate::infrastructure::util::component::TextInputUtilComponent;
 use crate::infrastructure::util::state::State;
-use crate::ui::state::{GoalFlowInputAction, GoalFlowInputState, PlanTabFocus, PlanTabState};
+use crate::ui::state::{self, AppAction, PlanTabAction, PlanTabFocus, PlanTabState};
 
 use super::Component;
 
 pub struct GoalFlowInputComponent {
-    goal_flow_input_requester: Sender<GoalFlowInputAction>,
-    goal_flow_input_state: State<GoalFlowInputState>,
-    plan_tab_state: State<PlanTabState>,
+    text_input: TextInputUtilComponent,
 }
 
 impl GoalFlowInputComponent {
     pub fn new(
-        goal_flow_input_requester: Sender<GoalFlowInputAction>,
-        goal_flow_input_state: State<GoalFlowInputState>,
+        plan_tab_requester: Sender<PlanTabAction>,
+        app_requester: Sender<AppAction>,
         plan_tab_state: State<PlanTabState>,
     ) -> Self {
-        Self {
-            goal_flow_input_requester,
-            goal_flow_input_state,
-            plan_tab_state,
-        }
+        let text_input = TextInputUtilComponent::new(
+            |c| c.is_ascii_digit() || c == '.',
+            state::create_goal_flow_on_confirm(plan_tab_requester, app_requester),
+            move || plan_tab_state.get().focus() == PlanTabFocus::GoalFlowInput,
+            || " Expected Flow (items/min) ".to_string(),
+        );
+
+        Self { text_input }
     }
 }
 
 impl Component for GoalFlowInputComponent {
     fn handle_input(&self, key: &KeyEvent) {
-        match key.code {
-            KeyCode::Char(c) => {
-                let _ = self
-                    .goal_flow_input_requester
-                    .try_send(GoalFlowInputAction::Input(c));
-            }
-            KeyCode::Backspace => {
-                let _ = self
-                    .goal_flow_input_requester
-                    .try_send(GoalFlowInputAction::Backspace);
-            }
-            KeyCode::Enter => {
-                let _ = self
-                    .goal_flow_input_requester
-                    .try_send(GoalFlowInputAction::Confirm);
-            }
-            KeyCode::Esc => {
-                let _ = self
-                    .goal_flow_input_requester
-                    .try_send(GoalFlowInputAction::Clear);
-            }
-            _ => {}
-        }
+        self.text_input.handle_input(key);
     }
 }
 
@@ -64,32 +42,6 @@ impl Widget for &GoalFlowInputComponent {
     where
         Self: Sized,
     {
-        let goal_flow_input_state = self.goal_flow_input_state.get();
-        let plan_tab_state = self.plan_tab_state.get();
-
-        let is_focused = plan_tab_state.focus() == PlanTabFocus::GoalFlowInput;
-
-        let line = Line::from(vec![
-            Span::from(goal_flow_input_state.input_text()),
-            Span::raw(if is_focused { "█" } else { "" }),
-        ]);
-
-        let border_style = if is_focused {
-            Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default()
-        };
-
-        let paragraph = Paragraph::new(line).block(
-            Block::new()
-                .border_type(BorderType::Plain)
-                .borders(Borders::all())
-                .border_style(border_style)
-                .title("Expected Flow (items/min)"),
-        );
-
-        paragraph.render(area, buf);
+        self.text_input.render(area, buf);
     }
 }

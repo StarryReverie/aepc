@@ -48,15 +48,13 @@ where
 fn setup() -> (AppComponent, State<AppState>) {
     let app_context = AppStateManager::context();
     let plan_tab_context = PlanTabStateManager::context();
-    let goal_flow_input_context =
-        GoalFlowInputStateManager::context(plan_tab_context.requester(), app_context.requester());
 
     let app = AppComponent::new(
         PlanTabComponent::new(
             GoalSelectionPanelComponent::new(
                 GoalFlowInputComponent::new(
-                    goal_flow_input_context.requester(),
-                    goal_flow_input_context.state(),
+                    plan_tab_context.requester(),
+                    app_context.requester(),
                     plan_tab_context.state(),
                 ),
                 plan_tab_context.state(),
@@ -72,7 +70,6 @@ fn setup() -> (AppComponent, State<AppState>) {
 
     app_context.run();
     plan_tab_context.run();
-    goal_flow_input_context.run();
 
     (app, app_state)
 }
