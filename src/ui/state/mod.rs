@@ -1,7 +1,9 @@
 mod app;
+mod goal_flow_input;
 mod plan_tab;
 
 pub use app::{AppAction, AppState, AppStateManager, StatusLevel};
+pub use goal_flow_input::{GoalFlowInputAction, GoalFlowInputState, GoalFlowInputStateManager};
 pub use plan_tab::{PlanTabAction, PlanTabFocus, PlanTabState, PlanTabStateManager};
 
 use tokio::sync::mpsc::Sender;

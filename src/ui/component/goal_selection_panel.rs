@@ -1,22 +1,36 @@
 use ratatui::buffer::Buffer;
 use ratatui::crossterm::event::KeyEvent;
-use ratatui::layout::Rect;
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::widgets::{Block, BorderType, Borders, Paragraph, Widget};
 
-use super::Component;
+use crate::infrastructure::util::state::State;
+use crate::ui::state::{PlanTabFocus, PlanTabState};
 
-pub struct GoalSelectionPanelComponent {}
+use super::{Component, GoalFlowInputComponent};
+
+pub struct GoalSelectionPanelComponent {
+    goal_flow_input: GoalFlowInputComponent,
+    plan_tab_state: State<PlanTabState>,
+}
 
 impl GoalSelectionPanelComponent {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(
+        goal_flow_input: GoalFlowInputComponent,
+        plan_tab_state: State<PlanTabState>,
+    ) -> Self {
+        Self {
+            goal_flow_input,
+            plan_tab_state,
+        }
     }
 }
 
 impl Component for GoalSelectionPanelComponent {
     fn handle_input(&self, key: &KeyEvent) {
-        #[expect(clippy::match_single_binding)]
-        match &key.code {
+        match self.plan_tab_state.get().focus() {
+            PlanTabFocus::GoalFlowInput => {
+                self.goal_flow_input.handle_input(key);
+            }
             _ => {}
         }
     }
@@ -27,11 +41,19 @@ impl Widget for &GoalSelectionPanelComponent {
     where
         Self: Sized,
     {
-        let paragraph = Paragraph::new("goal selection panel").block(
+        let layout = Layout::new(
+            Direction::Vertical,
+            [Constraint::Length(3), Constraint::Fill(1)],
+        )
+        .split(area);
+
+        self.goal_flow_input.render(layout[0], buf);
+
+        let paragraph = Paragraph::new("").block(
             Block::new()
                 .border_type(BorderType::Plain)
                 .borders(Borders::all()),
         );
-        paragraph.render(area, buf);
+        paragraph.render(layout[1], buf);
     }
 }
