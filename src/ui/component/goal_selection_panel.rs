@@ -28,6 +28,7 @@ impl GoalSelectionPanelComponent {
 
 impl Component for GoalSelectionPanelComponent {
     fn handle_input(&self, input: &Event) {
+        #[expect(clippy::single_match)]
         match self.plan_tab_state.get().focus() {
             PlanTabFocus::GoalFlowInput => {
                 self.goal_flow_input.handle_input(input);

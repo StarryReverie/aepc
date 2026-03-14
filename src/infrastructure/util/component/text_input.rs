@@ -71,8 +71,8 @@ impl TextInputUtilComponent {
 
 impl Component for TextInputUtilComponent {
     fn handle_input(&self, input: &Event) {
-        match input {
-            Event::Key(key) => match key.code {
+        if let Event::Key(key) = input {
+            match key.code {
                 KeyCode::Char(c) => {
                     let _ = self.requester.try_send(TextInputAction::Input(c));
                 }
@@ -86,8 +86,7 @@ impl Component for TextInputUtilComponent {
                     let _ = self.requester.try_send(TextInputAction::Clear);
                 }
                 _ => {}
-            },
-            _ => {}
+            }
         }
     }
 }
