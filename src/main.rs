@@ -48,6 +48,7 @@ where
 fn setup() -> (AppComponent, State<AppState>) {
     let app_context = AppStateManager::context();
     let plan_tab_context = PlanTabStateManager::context();
+    let goal_item_search_context = GoalItemSearchStateManager::context();
 
     let app = AppComponent::new(
         PlanTabComponent::new(
@@ -57,6 +58,7 @@ fn setup() -> (AppComponent, State<AppState>) {
                     app_context.requester(),
                     plan_tab_context.state(),
                 ),
+                GoalItemSearchComponent::new(plan_tab_context.state()),
                 plan_tab_context.state(),
             ),
             plan_tab_context.requester(),
@@ -70,6 +72,7 @@ fn setup() -> (AppComponent, State<AppState>) {
 
     app_context.run();
     plan_tab_context.run();
+    goal_item_search_context.run();
 
     (app, app_state)
 }
