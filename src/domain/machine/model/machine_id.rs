@@ -28,9 +28,7 @@ impl MachineId {
 pub enum NewMachineIdError {
     #[snafu(display("machine ID should not be empty"))]
     Empty,
-    #[snafu(display(
-        "machine ID should only contain alphabets, numbers, hyphens and underscores"
-    ))]
+    #[snafu(display("machine ID should only contain alphabets, numbers, hyphens and underscores"))]
     InvalidCharacter,
 }
 
