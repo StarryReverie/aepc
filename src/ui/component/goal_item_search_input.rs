@@ -24,6 +24,7 @@ impl GoalItemSearchInputComponent {
                 goal_item_search_requester,
                 plan_tab_requester,
             ),
+            |_| {},
             move || plan_tab_state.get().focus() == PlanTabFocus::GoalItemSearchInput,
             || " Expected Item Search ".to_string(),
         );

@@ -21,6 +21,7 @@ impl GoalFlowInputComponent {
         let text_input = TextInputUtilComponent::new(
             |c| c.is_ascii_digit() || c == '.',
             state::create_goal_flow_on_confirm(plan_tab_requester, app_requester),
+            |_| {},
             move || plan_tab_state.get().focus() == PlanTabFocus::GoalFlowInput,
             || " Expected Flow (items/min) ".to_string(),
         );

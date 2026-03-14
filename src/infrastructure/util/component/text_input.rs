@@ -19,19 +19,22 @@ pub struct TextInputUtilComponent {
 }
 
 impl TextInputUtilComponent {
-    pub fn new<FChar, FConfirm, FFocused, FTitle>(
+    pub fn new<FChar, FConfirm, FUpdate, FFocused, FTitle>(
         allowed_char: FChar,
         on_confirm: FConfirm,
+        on_update: FUpdate,
         is_focused: FFocused,
         title: FTitle,
     ) -> Self
     where
         FChar: Fn(char) -> bool + Send + Sync + 'static,
         FConfirm: FnMut(&str) + Send + Sync + 'static,
+        FUpdate: FnMut(&str) + Send + Sync + 'static,
         FFocused: Fn() -> bool + Send + Sync + 'static,
         FTitle: Fn() -> String + Send + Sync + 'static,
     {
-        let (requester, state) = Self::create_and_run_state_manager(allowed_char, on_confirm);
+        let (requester, state) =
+            Self::create_and_run_state_manager(allowed_char, on_confirm, on_update);
 
         Self {
             requester,
@@ -44,6 +47,7 @@ impl TextInputUtilComponent {
     fn create_and_run_state_manager(
         allowed_char: impl Fn(char) -> bool + Send + Sync + 'static,
         on_confirm: impl FnMut(&str) + Send + Sync + 'static,
+        on_update: impl FnMut(&str) + Send + Sync + 'static,
     ) -> (Sender<TextInputAction>, State<TextInputState>) {
         let (requester, actions) = mpsc::channel(32);
         let (source, state) = StateSource::new(TextInputState::default());
@@ -52,6 +56,7 @@ impl TextInputUtilComponent {
             actions,
             allowed_char: Box::new(allowed_char),
             on_confirm: Box::new(on_confirm),
+            on_update: Box::new(on_update),
         };
 
         tokio::spawn(async move {
@@ -151,6 +156,7 @@ struct TextInputStateManager {
     actions: Receiver<TextInputAction>,
     allowed_char: Box<dyn Fn(char) -> bool + Send + Sync>,
     on_confirm: Box<dyn FnMut(&str) + Send + Sync>,
+    on_update: Box<dyn FnMut(&str) + Send + Sync>,
 }
 
 impl TextInputStateManager {
@@ -165,26 +171,32 @@ impl TextInputStateManager {
 
     fn handle_action_input(&mut self, c: char) {
         if (self.allowed_char)(c) {
-            self.source.modify(|state| {
-                let mut text = state.input_text.clone();
+            let new_text = {
+                let current = self.source.get();
+                let mut text = current.input_text().clone();
                 text.push(c);
-                TextInputState {
-                    input_text: text,
-                    ..state.clone()
-                }
+                text
+            };
+            self.source.modify(|state| TextInputState {
+                input_text: new_text.clone(),
+                ..state.clone()
             });
+            (self.on_update)(&new_text);
         }
     }
 
     fn handle_action_backspace(&mut self) {
-        self.source.modify(|state| {
-            let mut text = state.input_text.clone();
+        let new_text = {
+            let current = self.source.get();
+            let mut text = current.input_text().clone();
             text.pop();
-            TextInputState {
-                input_text: text,
-                ..state.clone()
-            }
+            text
+        };
+        self.source.modify(|state| TextInputState {
+            input_text: new_text.clone(),
+            ..state.clone()
         });
+        (self.on_update)(&new_text);
     }
 
     fn handle_action_confirm(&mut self) {
@@ -197,6 +209,7 @@ impl TextInputStateManager {
             input_text: String::new(),
             ..state.clone()
         });
+        (self.on_update)("");
     }
 }
 
@@ -209,55 +222,24 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn test_basic_input() {
-        let confirmed = Arc::new(Mutex::new(Vec::new()));
-        let confirmed_clone = confirmed.clone();
-
-        let component = TextInputUtilComponent::new(
-            |_| true,
-            move |text| {
-                confirmed_clone.lock().unwrap().push(text.to_string());
-            },
-            || true,
-            || "Test".to_string(),
-        );
-
-        let _ = component.requester.try_send(TextInputAction::Input('a'));
-        let _ = component.requester.try_send(TextInputAction::Input('b'));
-
-        tokio::time::sleep(Duration::from_millis(50)).await;
-
-        assert_eq!(component.state.get().input_text(), "ab");
-    }
-
-    #[tokio::test]
-    async fn test_backspace() {
+    async fn test_input_operations() {
         let component =
-            TextInputUtilComponent::new(|_| true, |_| {}, || true, || "Test".to_string());
+            TextInputUtilComponent::new(|_| true, |_| {}, |_| {}, || true, || "Test".to_string());
 
         let _ = component.requester.try_send(TextInputAction::Input('a'));
-        let _ = component.requester.try_send(TextInputAction::Input('b'));
-        let _ = component.requester.try_send(TextInputAction::Backspace);
-
         tokio::time::sleep(Duration::from_millis(50)).await;
-
         assert_eq!(component.state.get().input_text(), "a");
-    }
 
-    #[tokio::test]
-    async fn test_clear() {
-        let component = TextInputUtilComponent::new(
-            |_| true,
-            |_| {},
-            Box::new(|| true),
-            Box::new(|| "Test".to_string()),
-        );
-
-        let _ = component.requester.try_send(TextInputAction::Input('a'));
-        let _ = component.requester.try_send(TextInputAction::Clear);
-
+        let _ = component.requester.try_send(TextInputAction::Input('b'));
         tokio::time::sleep(Duration::from_millis(50)).await;
+        assert_eq!(component.state.get().input_text(), "ab");
 
+        let _ = component.requester.try_send(TextInputAction::Backspace);
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        assert_eq!(component.state.get().input_text(), "a");
+
+        let _ = component.requester.try_send(TextInputAction::Clear);
+        tokio::time::sleep(Duration::from_millis(50)).await;
         assert_eq!(component.state.get().input_text(), "");
     }
 
@@ -265,6 +247,7 @@ mod tests {
     async fn test_char_filter() {
         let component = TextInputUtilComponent::new(
             |c| c.is_ascii_digit(),
+            |_| {},
             |_| {},
             || true,
             || "Test".to_string(),
@@ -275,7 +258,6 @@ mod tests {
         let _ = component.requester.try_send(TextInputAction::Input('2'));
 
         tokio::time::sleep(Duration::from_millis(50)).await;
-
         assert_eq!(component.state.get().input_text(), "12");
     }
 
@@ -289,6 +271,7 @@ mod tests {
             move |text| {
                 confirmed_clone.lock().unwrap().push(text.to_string());
             },
+            |_| {},
             || true,
             || "Test".to_string(),
         );
@@ -297,7 +280,33 @@ mod tests {
         let _ = component.requester.try_send(TextInputAction::Confirm);
 
         tokio::time::sleep(Duration::from_millis(50)).await;
-
         assert_eq!(*confirmed.lock().unwrap(), vec!["x"]);
+    }
+
+    #[tokio::test]
+    async fn test_on_update_callback() {
+        let updated = Arc::new(Mutex::new(Vec::new()));
+        let updated_clone = updated.clone();
+
+        let component = TextInputUtilComponent::new(
+            |c| c.is_ascii_digit(),
+            |_| {},
+            move |text| {
+                updated_clone.lock().unwrap().push(text.to_string());
+            },
+            || true,
+            || "Test".to_string(),
+        );
+
+        let _ = component.requester.try_send(TextInputAction::Input('1'));
+        let _ = component.requester.try_send(TextInputAction::Input('a'));
+        let _ = component.requester.try_send(TextInputAction::Input('2'));
+        let _ = component.requester.try_send(TextInputAction::Backspace);
+        let _ = component.requester.try_send(TextInputAction::Clear);
+        let _ = component.requester.try_send(TextInputAction::Input('3'));
+        let _ = component.requester.try_send(TextInputAction::Confirm);
+
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        assert_eq!(*updated.lock().unwrap(), vec!["1", "12", "1", "", "3"]);
     }
 }
