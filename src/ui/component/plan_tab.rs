@@ -1,5 +1,5 @@
 use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use ratatui::crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::widgets::{Block, Widget};
 use tokio::sync::mpsc::Sender;
@@ -32,13 +32,13 @@ impl PlanTabComponent {
 
 impl Component for PlanTabComponent {
     fn handle_input(&self, key: &KeyEvent) {
-        match (key.code, key.modifiers) {
-            (KeyCode::Tab, KeyModifiers::NONE) => {
+        match key.code {
+            KeyCode::Tab => {
                 let _ = self
                     .plan_tab_requester
                     .try_send(PlanTabAction::SwitchFocusToNext);
             }
-            (KeyCode::Tab, KeyModifiers::SHIFT) => {
+            KeyCode::BackTab => {
                 let _ = self
                     .plan_tab_requester
                     .try_send(PlanTabAction::SwitchFocusToPrevious);
