@@ -49,9 +49,14 @@ fn setup() -> (AppComponent, State<AppState>) {
     let app_context = AppStateManager::context();
     let plan_tab_context = PlanTabStateManager::context();
 
-    let plan_tab = PlanTabComponent::new(plan_tab_context.requester());
-    let status_bar = StatusBarComponent::new(app_context.state());
-    let app = AppComponent::new(plan_tab, status_bar, app_context.requester());
+    let app = AppComponent::new(
+        PlanTabComponent::new(
+            GoalSelectionPanelComponent::new(),
+            plan_tab_context.requester(),
+        ),
+        StatusBarComponent::new(app_context.state()),
+        app_context.requester(),
+    );
 
     let app_state = app_context.state();
 
