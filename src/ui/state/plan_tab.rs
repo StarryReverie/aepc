@@ -20,7 +20,7 @@ pub struct PlanTabState {
 impl Default for PlanTabState {
     fn default() -> Self {
         Self {
-            focus: PlanTabFocus::GoalSelectionPanel,
+            focus: PlanTabFocus::GoalFlowInput,
             expected_goal_item: None,
             expected_goal_flow: None,
         }
@@ -29,15 +29,18 @@ impl Default for PlanTabState {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlanTabFocus {
-    GoalSelectionPanel,
-    PlanDisplayPanel,
+    GoalFlowInput,
+    GoalItemSearchInput,
+    GoalItemSearchList,
+    PlanTreeList,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PlanTabAction {
     UpdateExpectedGoalItem(ItemId),
     UpdateExpectedGoalFlow(Flow),
-    SwitchFocus,
+    SwitchFocusToNext,
+    SwitchFocusToPrevious,
 }
 
 pub struct PlanTabStateManager {
@@ -61,8 +64,11 @@ impl PlanTabStateManager {
             PlanTabAction::UpdateExpectedGoalFlow(flow) => {
                 self.handle_action_update_expected_goal_flow(flow);
             }
-            PlanTabAction::SwitchFocus => {
-                self.handle_action_switch_focus();
+            PlanTabAction::SwitchFocusToNext => {
+                self.handle_action_switch_focus_to_next();
+            }
+            PlanTabAction::SwitchFocusToPrevious => {
+                self.handle_action_switch_focus_to_previous();
             }
         }
     }
@@ -81,11 +87,25 @@ impl PlanTabStateManager {
         });
     }
 
-    fn handle_action_switch_focus(&mut self) {
+    fn handle_action_switch_focus_to_next(&mut self) {
         self.source.modify(|state| PlanTabState {
             focus: match state.focus {
-                PlanTabFocus::GoalSelectionPanel => PlanTabFocus::PlanDisplayPanel,
-                PlanTabFocus::PlanDisplayPanel => PlanTabFocus::GoalSelectionPanel,
+                PlanTabFocus::GoalFlowInput => PlanTabFocus::GoalItemSearchInput,
+                PlanTabFocus::GoalItemSearchInput => PlanTabFocus::GoalItemSearchList,
+                PlanTabFocus::GoalItemSearchList => PlanTabFocus::PlanTreeList,
+                PlanTabFocus::PlanTreeList => PlanTabFocus::GoalFlowInput,
+            },
+            ..state.clone()
+        });
+    }
+
+    fn handle_action_switch_focus_to_previous(&mut self) {
+        self.source.modify(|state| PlanTabState {
+            focus: match state.focus {
+                PlanTabFocus::GoalFlowInput => PlanTabFocus::PlanTreeList,
+                PlanTabFocus::GoalItemSearchInput => PlanTabFocus::GoalFlowInput,
+                PlanTabFocus::GoalItemSearchList => PlanTabFocus::GoalItemSearchInput,
+                PlanTabFocus::PlanTreeList => PlanTabFocus::GoalItemSearchList,
             },
             ..state.clone()
         });

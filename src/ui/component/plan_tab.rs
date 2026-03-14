@@ -1,35 +1,57 @@
 use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::KeyEvent;
+use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::widgets::{Block, Widget};
 use tokio::sync::mpsc::Sender;
 
+use crate::infrastructure::util::state::State;
 use crate::ui::component::GoalSelectionPanelComponent;
-use crate::ui::state::PlanTabAction;
+use crate::ui::state::{PlanTabAction, PlanTabFocus, PlanTabState};
 
 use super::Component;
 
 pub struct PlanTabComponent {
     goal_selection_panel: GoalSelectionPanelComponent,
-    #[expect(dead_code)]
     plan_tab_requester: Sender<PlanTabAction>,
+    plan_tab_state: State<PlanTabState>,
 }
 
 impl PlanTabComponent {
     pub fn new(
         goal_selection_panel: GoalSelectionPanelComponent,
         plan_tab_requester: Sender<PlanTabAction>,
+        plan_tab_state: State<PlanTabState>,
     ) -> Self {
         Self {
             goal_selection_panel,
             plan_tab_requester,
+            plan_tab_state,
         }
     }
 }
 
 impl Component for PlanTabComponent {
     fn handle_input(&self, key: &KeyEvent) {
-        self.goal_selection_panel.handle_input(key);
+        match (key.code, key.modifiers) {
+            (KeyCode::Tab, KeyModifiers::NONE) => {
+                let _ = self
+                    .plan_tab_requester
+                    .try_send(PlanTabAction::SwitchFocusToNext);
+            }
+            (KeyCode::Tab, KeyModifiers::SHIFT) => {
+                let _ = self
+                    .plan_tab_requester
+                    .try_send(PlanTabAction::SwitchFocusToPrevious);
+            }
+            _ => match self.plan_tab_state.get().focus() {
+                PlanTabFocus::GoalFlowInput
+                | PlanTabFocus::GoalItemSearchInput
+                | PlanTabFocus::GoalItemSearchList => {
+                    self.goal_selection_panel.handle_input(key);
+                }
+                _ => {}
+            },
+        }
     }
 }
 

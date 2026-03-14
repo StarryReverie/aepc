@@ -53,6 +53,7 @@ fn setup() -> (AppComponent, State<AppState>) {
         PlanTabComponent::new(
             GoalSelectionPanelComponent::new(),
             plan_tab_context.requester(),
+            plan_tab_context.state(),
         ),
         StatusBarComponent::new(app_context.state()),
         app_context.requester(),
