@@ -58,7 +58,14 @@ fn setup() -> (AppComponent, State<AppState>) {
                     app_context.requester(),
                     plan_tab_context.state(),
                 ),
-                GoalItemSearchComponent::new(plan_tab_context.state()),
+                GoalItemSearchComponent::new(
+                    GoalItemSearchInputComponent::new(
+                        goal_item_search_context.requester(),
+                        plan_tab_context.requester(),
+                        plan_tab_context.state(),
+                    ),
+                    plan_tab_context.state(),
+                ),
                 plan_tab_context.state(),
             ),
             plan_tab_context.requester(),
