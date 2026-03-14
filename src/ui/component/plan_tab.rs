@@ -4,11 +4,10 @@ use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::widgets::{Block, Widget};
 use tokio::sync::mpsc::Sender;
 
+use crate::infrastructure::util::component::Component;
 use crate::infrastructure::util::state::State;
 use crate::ui::component::GoalSelectionPanelComponent;
 use crate::ui::state::{PlanTabAction, PlanTabFocus, PlanTabState};
-
-use super::Component;
 
 pub struct PlanTabComponent {
     goal_selection_panel: GoalSelectionPanelComponent,

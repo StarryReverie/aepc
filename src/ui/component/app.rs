@@ -4,10 +4,9 @@ use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::widgets::Widget;
 use tokio::sync::mpsc::Sender;
 
+use crate::infrastructure::util::component::Component;
 use crate::ui::component::{PlanTabComponent, StatusBarComponent};
 use crate::ui::state::AppAction;
-
-use super::Component;
 
 pub struct AppComponent {
     plan_tab: PlanTabComponent,

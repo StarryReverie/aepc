@@ -5,10 +5,9 @@ use ratatui::style::{Color, Style};
 use ratatui::text::Span;
 use ratatui::widgets::{Block, BorderType, Borders, Paragraph, Widget};
 
+use crate::infrastructure::util::component::Component;
 use crate::infrastructure::util::state::State;
 use crate::ui::state::{AppState, StatusLevel};
-
-use super::Component;
 
 pub struct StatusBarComponent {
     app_state: State<AppState>,

@@ -9,6 +9,8 @@ use tokio::sync::mpsc::{self, Receiver, Sender};
 
 use crate::infrastructure::util::state::{State, StateSource};
 
+use super::Component;
+
 pub struct TextInputUtilComponent {
     requester: Sender<TextInputAction>,
     state: State<TextInputState>,
@@ -65,8 +67,10 @@ impl TextInputUtilComponent {
 
         (requester, state)
     }
+}
 
-    pub fn handle_input(&self, input: &Event) {
+impl Component for TextInputUtilComponent {
+    fn handle_input(&self, input: &Event) {
         match input {
             Event::Key(key) => match key.code {
                 KeyCode::Char(c) => {

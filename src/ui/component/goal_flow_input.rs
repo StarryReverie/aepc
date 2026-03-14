@@ -4,11 +4,9 @@ use ratatui::layout::Rect;
 use ratatui::widgets::Widget;
 use tokio::sync::mpsc::Sender;
 
-use crate::infrastructure::util::component::TextInputUtilComponent;
+use crate::infrastructure::util::component::{Component, TextInputUtilComponent};
 use crate::infrastructure::util::state::State;
 use crate::ui::state::{self, AppAction, PlanTabAction, PlanTabFocus, PlanTabState};
-
-use super::Component;
 
 pub struct GoalFlowInputComponent {
     text_input: TextInputUtilComponent,

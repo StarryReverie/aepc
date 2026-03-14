@@ -3,10 +3,11 @@ use ratatui::crossterm::event::Event;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::widgets::{Block, BorderType, Borders, Paragraph, Widget};
 
+use crate::infrastructure::util::component::Component;
 use crate::infrastructure::util::state::State;
 use crate::ui::state::{PlanTabFocus, PlanTabState};
 
-use super::{Component, GoalFlowInputComponent};
+use super::GoalFlowInputComponent;
 
 pub struct GoalSelectionPanelComponent {
     goal_flow_input: GoalFlowInputComponent,
