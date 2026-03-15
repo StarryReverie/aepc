@@ -8,7 +8,9 @@ mod plan_tab;
 pub use app::{AppAction, AppState, AppStateManager, StatusLevel};
 pub use goal_flow_input::create_goal_flow_on_confirm;
 pub use goal_item_search::{GoalItemSearchAction, GoalItemSearchState, GoalItemSearchStateManager};
-pub use goal_item_search_input::create_goal_item_search_input_on_confirm;
+pub use goal_item_search_input::{
+    create_goal_item_search_input_on_confirm, create_goal_item_search_input_on_update,
+};
 pub use goal_item_search_list::{
     GoalItemSearchListAction, GoalItemSearchListState, GoalItemSearchListStateManager,
 };

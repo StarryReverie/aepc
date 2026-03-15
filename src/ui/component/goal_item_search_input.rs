@@ -20,15 +20,11 @@ impl GoalItemSearchInputComponent {
     ) -> Self {
         let text_input = TextInputUtilComponent::new(
             |_| true,
-            state::create_goal_item_search_input_on_confirm(
-                goal_item_search_requester,
-                plan_tab_requester,
-            ),
-            |_| {},
+            state::create_goal_item_search_input_on_confirm(plan_tab_requester),
+            state::create_goal_item_search_input_on_update(goal_item_search_requester),
             move || plan_tab_state.get().focus() == PlanTabFocus::GoalItemSearchInput,
             || " Expected Item Search ".to_string(),
         );
-
         Self { text_input }
     }
 }
