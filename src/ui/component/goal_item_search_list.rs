@@ -2,7 +2,7 @@ use ratatui::buffer::Buffer;
 use ratatui::crossterm::event::{Event, KeyCode};
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Modifier, Style};
-use ratatui::widgets::{Block, BorderType, Borders, List, ListItem, Widget};
+use ratatui::widgets::{Block, BorderType, Borders, List, ListItem, StatefulWidget, Widget};
 use tokio::sync::mpsc::Sender;
 
 use crate::infrastructure::util::component::Component;
@@ -61,30 +61,16 @@ impl Widget for &GoalItemSearchListComponent {
     where
         Self: Sized,
     {
-        let focus = self.plan_tab_state.get().focus();
-        let is_focused = focus == PlanTabFocus::GoalItemSearchList;
+        let plan_tab_state = self.plan_tab_state.get();
+        let is_focused = plan_tab_state.focus() == PlanTabFocus::GoalItemSearchList;
 
-        let list_state = self.goal_item_search_list_state.get();
-        let items = list_state.filtered_items();
-        let selected_index = list_state.selected_index();
+        let goal_item_search_list_state = self.goal_item_search_list_state.get();
+        let items = goal_item_search_list_state.filtered_items();
+        let mut list_state = goal_item_search_list_state.list_state();
 
         let list_items: Vec<ListItem> = items
             .iter()
-            .enumerate()
-            .map(|(idx, item)| {
-                let is_selected = Some(idx) == selected_index;
-                let item_text = item.name().value().as_str();
-                if is_focused && is_selected {
-                    ListItem::new(item_text).style(
-                        Style::default()
-                            .bg(Color::Cyan)
-                            .fg(Color::Black)
-                            .add_modifier(Modifier::BOLD),
-                    )
-                } else {
-                    ListItem::new(item_text)
-                }
-            })
+            .map(|item| ListItem::new(item.name().value().as_str()))
             .collect();
 
         let border_style = if is_focused {
@@ -95,14 +81,29 @@ impl Widget for &GoalItemSearchListComponent {
             Style::default().fg(Color::Gray)
         };
 
-        let list = List::new(list_items).block(
-            Block::new()
-                .border_type(BorderType::Plain)
-                .borders(Borders::all())
-                .border_style(border_style)
-                .title(" Expected Item Selection "),
-        );
+        let highlight_style = if is_focused {
+            Style::default()
+                .bg(Color::Cyan)
+                .fg(Color::Black)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default()
+        };
 
-        list.render(area, buf);
+        let list = List::new(list_items)
+            .block(
+                Block::new()
+                    .border_type(BorderType::Plain)
+                    .borders(Borders::all())
+                    .border_style(border_style)
+                    .title(" Expected Item Selection "),
+            )
+            .highlight_style(highlight_style);
+
+        StatefulWidget::render(list, area, buf, &mut list_state);
+
+        let _ = self
+            .goal_item_search_list_requester
+            .try_send(GoalItemSearchListAction::SetListState(list_state));
     }
 }

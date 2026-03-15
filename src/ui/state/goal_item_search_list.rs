@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use getset::{CopyGetters, Getters};
+use ratatui::widgets::ListState;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
 use crate::application::query::item::{DynItemQueryService, ItemQueryService, SearchItemsError};
@@ -13,14 +14,14 @@ pub struct GoalItemSearchListState {
     #[getset(get = "pub")]
     filtered_items: Vec<Item>,
     #[getset(get_copy = "pub")]
-    selected_index: Option<usize>,
+    list_state: ListState,
 }
 
 impl Default for GoalItemSearchListState {
     fn default() -> Self {
         Self {
             filtered_items: Vec::new(),
-            selected_index: None,
+            list_state: ListState::default(),
         }
     }
 }
@@ -30,6 +31,7 @@ pub enum GoalItemSearchListAction {
     SelectNext,
     SelectPrevious,
     ConfirmSelection,
+    SetListState(ListState),
 }
 
 #[derive(Debug)]
@@ -70,9 +72,7 @@ impl GoalItemSearchListStateManager {
         };
         StateManagerContext::new(manager, requester)
     }
-}
 
-impl GoalItemSearchListStateManager {
     fn handle_action(&mut self, action: GoalItemSearchListAction) {
         match action {
             GoalItemSearchListAction::SelectNext => {
@@ -84,42 +84,27 @@ impl GoalItemSearchListStateManager {
             GoalItemSearchListAction::ConfirmSelection => {
                 self.handle_action_confirm_selection();
             }
+            GoalItemSearchListAction::SetListState(list_state) => {
+                self.handle_action_set_list_state(list_state);
+            }
         }
     }
 
     fn handle_action_select_next(&mut self) {
-        self.source.modify(|state| {
-            let len = state.filtered_items().len();
-            let selected_index = match state.selected_index() {
-                None if len > 0 => Some(0),
-                Some(idx) if idx < len - 1 => Some(idx + 1),
-                otherwise => otherwise,
-            };
-            GoalItemSearchListState {
-                selected_index,
-                ..state.clone()
-            }
-        });
+        let mut state = self.source.get().clone();
+        state.list_state.select_next();
+        self.source.set(state);
     }
 
     fn handle_action_select_previous(&mut self) {
-        self.source.modify(|state| {
-            let len = state.filtered_items().len();
-            let selected_index = match state.selected_index() {
-                None if len > 0 => Some(len - 1),
-                Some(idx) if idx > 0 => Some(idx - 1),
-                otherwise => otherwise,
-            };
-            GoalItemSearchListState {
-                selected_index,
-                ..state.clone()
-            }
-        });
+        let mut state = self.source.get().clone();
+        state.list_state.select_previous();
+        self.source.set(state);
     }
 
     fn handle_action_confirm_selection(&mut self) {
         let state = self.source.get();
-        if let Some(index) = state.selected_index()
+        if let Some(index) = state.list_state.selected()
             && let Some(item) = state.filtered_items().get(index)
         {
             let _ = self
@@ -129,6 +114,13 @@ impl GoalItemSearchListStateManager {
                 .plan_tab_requester
                 .try_send(PlanTabAction::SwitchFocusToNext);
         }
+    }
+
+    fn handle_action_set_list_state(&mut self, list_state: ListState) {
+        self.source.modify(|state| GoalItemSearchListState {
+            list_state,
+            ..state.clone()
+        });
     }
 
     fn handle_response(&mut self, response: GoalItemSearchListResponse) {
@@ -145,20 +137,10 @@ impl GoalItemSearchListStateManager {
     ) {
         match filtered_items {
             Ok(filtered_items) => {
-                self.source.modify(|state| {
-                    let selected_item_id = state.selected_index().and_then(|idx| {
-                        state
-                            .filtered_items()
-                            .get(idx)
-                            .map(|item| item.id().clone())
-                    });
-                    let selected_index = selected_item_id
-                        .and_then(|idx| filtered_items.iter().position(|item| item.id() == &idx));
-                    GoalItemSearchListState {
-                        filtered_items,
-                        selected_index,
-                        ..state.clone()
-                    }
+                self.source.modify(|state| GoalItemSearchListState {
+                    filtered_items,
+                    list_state: ListState::default(),
+                    ..state.clone()
                 });
             }
             Err(err) => {
