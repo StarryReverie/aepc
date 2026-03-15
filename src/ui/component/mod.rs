@@ -7,6 +7,7 @@ mod goal_selection_panel;
 mod plan_display_panel;
 mod plan_goal_label;
 mod plan_tab;
+mod plan_tree_list;
 mod status_bar;
 
 pub use app::AppComponent;
@@ -18,4 +19,5 @@ pub use goal_selection_panel::GoalSelectionPanelComponent;
 pub use plan_display_panel::PlanDisplayPanelComponent;
 pub use plan_goal_label::PlanGoalLabelComponent;
 pub use plan_tab::PlanTabComponent;
+pub use plan_tree_list::PlanTreeListComponent;
 pub use status_bar::StatusBarComponent;
