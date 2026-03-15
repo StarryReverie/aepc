@@ -1,7 +1,7 @@
 use getset::{CopyGetters, Getters};
 use tokio::sync::mpsc::{self, Receiver};
 
-use crate::domain::item::model::ItemId;
+use crate::domain::item::model::Item;
 use crate::domain::recipe::model::Flow;
 use crate::infrastructure::util::state::{State, StateManager, StateManagerContext, StateSource};
 
@@ -10,7 +10,7 @@ pub struct PlanTabState {
     #[getset(get_copy = "pub")]
     focus: PlanTabFocus,
     #[getset(get = "pub")]
-    expected_goal_item: Option<ItemId>,
+    expected_goal_item: Option<Item>,
     #[getset(get_copy = "pub")]
     expected_goal_flow: Option<Flow>,
 }
@@ -35,7 +35,7 @@ pub enum PlanTabFocus {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PlanTabAction {
-    UpdateExpectedGoalItem(ItemId),
+    UpdateExpectedGoalItem(Item),
     UpdateExpectedGoalFlow(Flow),
     SwitchFocusToNext,
     SwitchFocusToPrevious,
@@ -71,7 +71,7 @@ impl PlanTabStateManager {
         }
     }
 
-    fn handle_action_update_expected_goal_item(&mut self, item: ItemId) {
+    fn handle_action_update_expected_goal_item(&mut self, item: Item) {
         self.source.modify(|state| PlanTabState {
             expected_goal_item: Some(item),
             ..state.clone()

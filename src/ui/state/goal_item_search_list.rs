@@ -124,7 +124,7 @@ impl GoalItemSearchListStateManager {
         {
             let _ = self
                 .plan_tab_requester
-                .try_send(PlanTabAction::UpdateExpectedGoalItem(item.id().clone()));
+                .try_send(PlanTabAction::UpdateExpectedGoalItem(item.clone()));
             let _ = self
                 .plan_tab_requester
                 .try_send(PlanTabAction::SwitchFocusToNext);
