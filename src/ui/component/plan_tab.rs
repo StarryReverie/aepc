@@ -1,16 +1,17 @@
 use ratatui::buffer::Buffer;
 use ratatui::crossterm::event::{Event, KeyCode};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
-use ratatui::widgets::{Block, Widget};
+use ratatui::widgets::Widget;
 use tokio::sync::mpsc::Sender;
 
 use crate::infrastructure::util::component::Component;
 use crate::infrastructure::util::state::State;
-use crate::ui::component::GoalSelectionPanelComponent;
+use crate::ui::component::{GoalSelectionPanelComponent, PlanDisplayPanelComponent};
 use crate::ui::state::{PlanTabAction, PlanTabFocus, PlanTabState};
 
 pub struct PlanTabComponent {
     goal_selection_panel: GoalSelectionPanelComponent,
+    plan_display_panel: PlanDisplayPanelComponent,
     plan_tab_requester: Sender<PlanTabAction>,
     plan_tab_state: State<PlanTabState>,
 }
@@ -18,11 +19,13 @@ pub struct PlanTabComponent {
 impl PlanTabComponent {
     pub fn new(
         goal_selection_panel: GoalSelectionPanelComponent,
+        plan_display_panel: PlanDisplayPanelComponent,
         plan_tab_requester: Sender<PlanTabAction>,
         plan_tab_state: State<PlanTabState>,
     ) -> Self {
         Self {
             goal_selection_panel,
+            plan_display_panel,
             plan_tab_requester,
             plan_tab_state,
         }
@@ -48,7 +51,9 @@ impl Component for PlanTabComponent {
                 | PlanTabFocus::GoalItemSearchList => {
                     self.goal_selection_panel.handle_input(input);
                 }
-                _ => {}
+                PlanTabFocus::PlanTreeList => {
+                    self.plan_display_panel.handle_input(input);
+                }
             },
         }
     }
@@ -66,6 +71,6 @@ impl Widget for &PlanTabComponent {
         .split(area);
 
         self.goal_selection_panel.render(layout[0], buf);
-        Block::bordered().render(layout[1], buf);
+        self.plan_display_panel.render(layout[1], buf);
     }
 }

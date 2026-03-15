@@ -86,6 +86,7 @@ fn setup() -> (AppComponent, State<AppState>) {
                 ),
                 plan_tab_context.state(),
             ),
+            PlanDisplayPanelComponent::new(),
             plan_tab_context.requester(),
             plan_tab_context.state(),
         ),
