@@ -49,7 +49,7 @@ impl PlanFactoryImpl {
 
         let recipes = self
             .recipe_repository
-            .find_containing_product(goal)
+            .find_all_by_products_containing_target(goal)
             .await
             .context(InfrastructureSnafu {
                 message: "could not query recipes",
@@ -419,7 +419,10 @@ mod tests {
             Ok(None)
         }
 
-        async fn find_containing_product(&self, product_id: &ItemId) -> AnyhowResult<Vec<Recipe>> {
+        async fn find_all_by_products_containing_target(
+            &self,
+            product_id: &ItemId,
+        ) -> AnyhowResult<Vec<Recipe>> {
             let mut result = Vec::new();
             for recipe in self.recipes.values() {
                 if recipe.products().iter().any(|(id, _)| id == product_id) {

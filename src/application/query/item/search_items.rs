@@ -7,16 +7,19 @@ use crate::domain::item::outbound::ItemRepository;
 
 #[derive(Debug, Snafu)]
 #[non_exhaustive]
-pub enum QueryAllItemsError {
+pub enum SearchItemsError {
     #[snafu(display("infrastructure error when querying all items"))]
     Infrastructure { source: AnyhowError },
 }
 
 impl ItemQueryServiceImpl {
-    pub(super) async fn query_all_items_impl(&self) -> Result<Vec<Item>, QueryAllItemsError> {
+    pub(super) async fn search_items_impl(
+        &self,
+        pattern: &str,
+    ) -> Result<Vec<Item>, SearchItemsError> {
         let items = self
             .item_repository
-            .get_all()
+            .find_all_by_name_containing_pattern(pattern)
             .await
             .context(InfrastructureSnafu)?;
         Ok(items)
@@ -34,10 +37,10 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn test_query_all_items() {
-        let service = setup_query_all_items();
+    async fn test_search_items() {
+        let service = setup_search_items();
 
-        let items = service.query_all_items_impl().await.unwrap();
+        let items = service.search_items_impl("Item").await.unwrap();
 
         assert_eq!(items.len(), 3);
         assert_eq!(items[0], make_item("i1", "Item 1"));
@@ -45,7 +48,7 @@ mod tests {
         assert_eq!(items[2], make_item("i3", "Item 3"));
     }
 
-    fn setup_query_all_items() -> ItemQueryServiceImpl {
+    fn setup_search_items() -> ItemQueryServiceImpl {
         fn i1() -> Item {
             make_item("i1", "Item 1")
         }
@@ -56,11 +59,12 @@ mod tests {
             make_item("i3", "Item 3")
         }
 
-        let item_repo =
-            DynItemRepository::new_arc(Unimock::new(ItemRepositoryMock::get_all.stub(|each| {
+        let item_repo = DynItemRepository::new_arc(Unimock::new(
+            ItemRepositoryMock::find_all_by_name_containing_pattern.stub(|each| {
                 each.call(matching!())
-                    .answers(&|_| Ok(vec![i1(), i2(), i3()]));
-            })));
+                    .answers(&|_, _| Ok(vec![i1(), i2(), i3()]));
+            }),
+        ));
 
         ItemQueryServiceImpl::new(item_repo)
     }

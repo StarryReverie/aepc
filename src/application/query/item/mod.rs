@@ -1,7 +1,7 @@
-mod query_all_items;
+mod search_items;
 mod service;
 
-pub use query_all_items::QueryAllItemsError;
+pub use search_items::SearchItemsError;
 pub use service::{DynItemQueryService, ItemQueryService, ItemQueryServiceImpl};
 
 #[cfg(test)]

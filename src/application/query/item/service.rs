@@ -3,13 +3,15 @@ use std::sync::Arc;
 use crate::domain::item::model::Item;
 use crate::domain::item::outbound::DynItemRepository;
 
-use super::QueryAllItemsError;
+use super::SearchItemsError;
 
 #[unimock::unimock(api = ItemQueryServiceMock)]
 #[dynosaur::dynosaur(pub DynItemQueryService = dyn(box) ItemQueryService)]
 pub trait ItemQueryService: Send + Sync {
-    fn query_all_items(&self)
-    -> impl Future<Output = Result<Vec<Item>, QueryAllItemsError>> + Send;
+    fn search_items(
+        &self,
+        pattern: &str,
+    ) -> impl Future<Output = Result<Vec<Item>, SearchItemsError>> + Send;
 }
 
 pub struct ItemQueryServiceImpl {
@@ -23,7 +25,7 @@ impl ItemQueryServiceImpl {
 }
 
 impl ItemQueryService for ItemQueryServiceImpl {
-    async fn query_all_items(&self) -> Result<Vec<Item>, QueryAllItemsError> {
-        self.query_all_items_impl().await
+    async fn search_items(&self, pattern: &str) -> Result<Vec<Item>, SearchItemsError> {
+        self.search_items_impl(pattern).await
     }
 }

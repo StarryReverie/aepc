@@ -7,5 +7,8 @@ use crate::domain::item::model::{Item, ItemId};
 pub trait ItemRepository: Send + Sync {
     fn get(&self, item_id: &ItemId) -> impl Future<Output = AnyhowResult<Option<Item>>> + Send;
 
-    fn get_all(&self) -> impl Future<Output = AnyhowResult<Vec<Item>>> + Send;
+    fn find_all_by_name_containing_pattern(
+        &self,
+        pattern: &str,
+    ) -> impl Future<Output = AnyhowResult<Vec<Item>>> + Send;
 }

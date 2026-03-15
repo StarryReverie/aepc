@@ -11,8 +11,8 @@ pub trait RecipeRepository: Send + Sync {
         recipe_id: &RecipeId,
     ) -> impl Future<Output = AnyhowResult<Option<Recipe>>> + Send;
 
-    fn find_containing_product(
+    fn find_all_by_products_containing_target(
         &self,
-        product_id: &ItemId,
+        target_id: &ItemId,
     ) -> impl Future<Output = AnyhowResult<Vec<Recipe>>> + Send;
 }
