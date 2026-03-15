@@ -5,6 +5,7 @@ mod goal_item_search_input;
 mod goal_item_search_list;
 mod goal_selection_panel;
 mod plan_display_panel;
+mod plan_goal_label;
 mod plan_tab;
 mod status_bar;
 
@@ -15,5 +16,6 @@ pub use goal_item_search_input::GoalItemSearchInputComponent;
 pub use goal_item_search_list::GoalItemSearchListComponent;
 pub use goal_selection_panel::GoalSelectionPanelComponent;
 pub use plan_display_panel::PlanDisplayPanelComponent;
+pub use plan_goal_label::PlanGoalLabelComponent;
 pub use plan_tab::PlanTabComponent;
 pub use status_bar::StatusBarComponent;

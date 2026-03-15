@@ -4,12 +4,15 @@ use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::widgets::{Block, Widget};
 
 use crate::infrastructure::util::component::Component;
+use crate::ui::component::PlanGoalLabelComponent;
 
-pub struct PlanDisplayPanelComponent {}
+pub struct PlanDisplayPanelComponent {
+    plan_goal_label: PlanGoalLabelComponent,
+}
 
 impl PlanDisplayPanelComponent {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(plan_goal_label: PlanGoalLabelComponent) -> Self {
+        Self { plan_goal_label }
     }
 }
 
@@ -29,7 +32,7 @@ impl Widget for &PlanDisplayPanelComponent {
         )
         .split(area);
 
-        Block::bordered().render(layout[0], buf);
+        self.plan_goal_label.render(layout[0], buf);
         Block::bordered().render(layout[1], buf);
     }
 }
