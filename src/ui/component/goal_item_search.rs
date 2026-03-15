@@ -7,20 +7,23 @@ use crate::infrastructure::util::component::Component;
 use crate::infrastructure::util::state::State;
 use crate::ui::state::{PlanTabFocus, PlanTabState};
 
-use super::GoalItemSearchInputComponent;
+use super::{GoalItemSearchInputComponent, GoalItemSearchListComponent};
 
 pub struct GoalItemSearchComponent {
     goal_item_search_input: GoalItemSearchInputComponent,
+    goal_item_search_list: GoalItemSearchListComponent,
     plan_tab_state: State<PlanTabState>,
 }
 
 impl GoalItemSearchComponent {
     pub fn new(
         goal_item_search_input: GoalItemSearchInputComponent,
+        goal_item_search_list: GoalItemSearchListComponent,
         plan_tab_state: State<PlanTabState>,
     ) -> Self {
         Self {
             goal_item_search_input,
+            goal_item_search_list,
             plan_tab_state,
         }
     }
@@ -32,8 +35,8 @@ impl Component for GoalItemSearchComponent {
             PlanTabFocus::GoalItemSearchInput => {
                 self.goal_item_search_input.handle_input(input);
             }
-            PlanTabFocus::PlanTreeList => {
-                todo!("needs to forward inputs to goal_item_search_list");
+            PlanTabFocus::GoalItemSearchList => {
+                self.goal_item_search_list.handle_input(input);
             }
             _ => {}
         }
@@ -52,5 +55,6 @@ impl Widget for &GoalItemSearchComponent {
         .split(area);
 
         self.goal_item_search_input.render(layout[0], buf);
+        self.goal_item_search_list.render(layout[1], buf);
     }
 }

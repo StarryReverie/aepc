@@ -5,6 +5,9 @@ use ratatui::backend::Backend;
 use ratatui::crossterm::event::EventStream;
 use tokio::time::Duration;
 
+use aepc::application::query::item::{DynItemQueryService, ItemQueryServiceImpl};
+use aepc::domain::item::model::{Item, ItemId};
+use aepc::domain::item::outbound::{DynItemRepository, ItemRepository};
 use aepc::infrastructure::util::component::Component;
 use aepc::infrastructure::util::state::State;
 use aepc::ui::component::*;
@@ -46,9 +49,19 @@ where
 }
 
 fn setup() -> (AppComponent, State<AppState>) {
+    let item_repo = DynItemRepository::new_arc(ItemEmptyRepository::new());
+
+    let item_query_service = DynItemQueryService::new_arc(ItemQueryServiceImpl::new(item_repo));
+
     let app_context = AppStateManager::context();
     let plan_tab_context = PlanTabStateManager::context();
     let goal_item_search_context = GoalItemSearchStateManager::context();
+    let goal_item_search_list_context = GoalItemSearchListStateManager::context(
+        goal_item_search_context.state(),
+        plan_tab_context.requester(),
+        app_context.requester(),
+        item_query_service,
+    );
 
     let app = AppComponent::new(
         PlanTabComponent::new(
@@ -62,6 +75,11 @@ fn setup() -> (AppComponent, State<AppState>) {
                     GoalItemSearchInputComponent::new(
                         goal_item_search_context.requester(),
                         plan_tab_context.requester(),
+                        plan_tab_context.state(),
+                    ),
+                    GoalItemSearchListComponent::new(
+                        goal_item_search_list_context.requester(),
+                        goal_item_search_list_context.state(),
                         plan_tab_context.state(),
                     ),
                     plan_tab_context.state(),
@@ -80,6 +98,25 @@ fn setup() -> (AppComponent, State<AppState>) {
     app_context.run();
     plan_tab_context.run();
     goal_item_search_context.run();
+    goal_item_search_list_context.run();
 
     (app, app_state)
+}
+
+struct ItemEmptyRepository {}
+
+impl ItemEmptyRepository {
+    fn new() -> Self {
+        Self {}
+    }
+}
+
+impl ItemRepository for ItemEmptyRepository {
+    async fn get(&self, _item_id: &ItemId) -> AnyhowResult<Option<Item>> {
+        Ok(None)
+    }
+
+    async fn find_all_by_name_containing_pattern(&self, _pattern: &str) -> AnyhowResult<Vec<Item>> {
+        Ok(Vec::new())
+    }
 }
