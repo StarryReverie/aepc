@@ -70,7 +70,7 @@ impl Widget for &GoalItemSearchListComponent {
 
         let list_items: Vec<ListItem> = items
             .iter()
-            .map(|item| ListItem::new(item.name().value().as_str()))
+            .map(|item| ListItem::new(format!(" {}", item.name().value())))
             .collect();
 
         let border_style = if is_focused {

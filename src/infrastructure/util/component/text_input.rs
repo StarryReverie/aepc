@@ -105,6 +105,7 @@ impl Widget for &TextInputUtilComponent {
         let is_focused = (self.is_focused)();
 
         let line = Line::from(vec![
+            Span::from(" "),
             Span::from(text_input_state.input_text()),
             Span::raw(if is_focused { "█" } else { "" }),
         ]);

@@ -104,7 +104,7 @@ impl Widget for &PlanTreeListComponent {
 
 fn format_plan_item(plan_detail: &PlanDetail, indent: String) -> Vec<Line<'static>> {
     let mut line1_spans = vec![Span::raw(indent.clone())];
-    line1_spans.push(Span::raw(format!("{}", plan_detail.goal_name())));
+    line1_spans.push(Span::raw(plan_detail.goal_name().to_string()));
     line1_spans.push(Span::raw(" x "));
 
     let flow_text = if let Some(backward) = plan_detail.flow_backward() {
@@ -124,7 +124,7 @@ fn format_plan_item(plan_detail: &PlanDetail, indent: String) -> Vec<Line<'stati
 
     let mut line2_spans = vec![Span::raw(indent)];
     line2_spans.push(Span::raw("["));
-    line2_spans.push(Span::raw(format!("{}", plan_detail.machine_name())));
+    line2_spans.push(Span::raw(plan_detail.machine_name().to_string()));
     line2_spans.push(Span::raw("] x "));
 
     let replica_text = if let Some(backward) = plan_detail.replica_backward() {
@@ -147,7 +147,7 @@ fn flatten_plan_detail_to_list_items(
     depth: usize,
     items: &mut Vec<ListItem>,
 ) {
-    let indent = "    ".repeat(depth);
+    let indent = "    ".repeat(depth) + " ";
     let lines = format_plan_item(plan_detail, indent);
     items.push(ListItem::new(lines));
 

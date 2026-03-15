@@ -35,12 +35,13 @@ impl Widget for &StatusBarComponent {
             StatusLevel::Error => Color::Red,
         };
 
-        let text = Span::styled(state.status_text().as_str(), Style::new().fg(color));
+        let text = Span::styled(format!(" {}", state.status_text()), Style::new().fg(color));
 
         let paragraph = Paragraph::new(text).block(
             Block::new()
                 .border_type(BorderType::Plain)
-                .borders(Borders::all()),
+                .borders(Borders::all())
+                .title(" Status "),
         );
 
         paragraph.render(area, buf);

@@ -66,7 +66,7 @@ impl Widget for &PlanTabComponent {
     {
         let layout = Layout::new(
             Direction::Horizontal,
-            [Constraint::Fill(1), Constraint::Fill(2)],
+            [Constraint::Fill(2), Constraint::Fill(5)],
         )
         .split(area);
 
