@@ -2,9 +2,8 @@ use getset::Getters;
 use ratatui::buffer::Buffer;
 use ratatui::crossterm::event::{Event, KeyCode};
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, BorderType, Borders, Paragraph, Widget};
+use ratatui::widgets::{Block, Paragraph, Widget};
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
 use crate::infrastructure::util::state::{State, StateSource};
@@ -16,15 +15,17 @@ pub struct TextInputUtilComponent {
     state: State<TextInputState>,
     is_focused: Box<dyn Fn() -> bool + Send + Sync>,
     title: Box<dyn Fn() -> String + Send + Sync>,
+    block_style: Box<dyn Fn(bool) -> Block<'static> + Send + Sync + 'static>,
 }
 
 impl TextInputUtilComponent {
-    pub fn new<FChar, FConfirm, FUpdate, FFocused, FTitle>(
+    pub fn new<FChar, FConfirm, FUpdate, FFocused, FTitle, FBlock>(
         allowed_char: FChar,
         on_confirm: FConfirm,
         on_update: FUpdate,
         is_focused: FFocused,
         title: FTitle,
+        block_style: FBlock,
     ) -> Self
     where
         FChar: Fn(char) -> bool + Send + Sync + 'static,
@@ -32,6 +33,7 @@ impl TextInputUtilComponent {
         FUpdate: FnMut(&str) + Send + Sync + 'static,
         FFocused: Fn() -> bool + Send + Sync + 'static,
         FTitle: Fn() -> String + Send + Sync + 'static,
+        FBlock: Fn(bool) -> Block<'static> + Send + Sync + 'static,
     {
         let (requester, state) =
             Self::create_and_run_state_manager(allowed_char, on_confirm, on_update);
@@ -41,6 +43,7 @@ impl TextInputUtilComponent {
             state,
             is_focused: Box::new(is_focused),
             title: Box::new(title),
+            block_style: Box::new(block_style),
         }
     }
 
@@ -110,22 +113,8 @@ impl Widget for &TextInputUtilComponent {
             Span::raw(if is_focused { "█" } else { "" }),
         ]);
 
-        let border_style = if is_focused {
-            Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default()
-        };
-
-        let paragraph = Paragraph::new(line).block(
-            Block::new()
-                .border_type(BorderType::Plain)
-                .borders(Borders::all())
-                .border_style(border_style)
-                .title((self.title)()),
-        );
-
+        let block = (self.block_style)(is_focused).title((self.title)());
+        let paragraph = Paragraph::new(line).block(block);
         paragraph.render(area, buf);
     }
 }
@@ -224,8 +213,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_input_operations() {
-        let component =
-            TextInputUtilComponent::new(|_| true, |_| {}, |_| {}, || true, || "Test".to_string());
+        let component = TextInputUtilComponent::new(
+            |_| true,
+            |_| {},
+            |_| {},
+            || true,
+            || "Test".to_string(),
+            |_| Block::new(),
+        );
 
         let _ = component.requester.try_send(TextInputAction::Input('a'));
         tokio::time::sleep(Duration::from_millis(50)).await;
@@ -252,6 +247,7 @@ mod tests {
             |_| {},
             || true,
             || "Test".to_string(),
+            |_| Block::new(),
         );
 
         let _ = component.requester.try_send(TextInputAction::Input('1'));
@@ -275,6 +271,7 @@ mod tests {
             |_| {},
             || true,
             || "Test".to_string(),
+            |_| Block::new(),
         );
 
         let _ = component.requester.try_send(TextInputAction::Input('x'));
@@ -297,6 +294,7 @@ mod tests {
             },
             || true,
             || "Test".to_string(),
+            |_| Block::new(),
         );
 
         let _ = component.requester.try_send(TextInputAction::Input('1'));

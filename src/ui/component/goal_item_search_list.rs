@@ -1,8 +1,7 @@
 use ratatui::buffer::Buffer;
 use ratatui::crossterm::event::{Event, KeyCode};
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Modifier, Style};
-use ratatui::widgets::{Block, BorderType, Borders, List, ListItem, StatefulWidget, Widget};
+use ratatui::widgets::{List, ListItem, StatefulWidget, Widget};
 use tokio::sync::mpsc::Sender;
 
 use crate::infrastructure::util::component::Component;
@@ -10,6 +9,7 @@ use crate::infrastructure::util::state::State;
 use crate::ui::state::{
     GoalItemSearchListAction, GoalItemSearchListState, PlanTabFocus, PlanTabState,
 };
+use crate::ui::style;
 
 pub struct GoalItemSearchListComponent {
     goal_item_search_list_requester: Sender<GoalItemSearchListAction>,
@@ -73,32 +73,9 @@ impl Widget for &GoalItemSearchListComponent {
             .map(|item| ListItem::new(format!(" {}", item.name().value())))
             .collect();
 
-        let border_style = if is_focused {
-            Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(Color::Gray)
-        };
-
-        let highlight_style = if is_focused {
-            Style::default()
-                .bg(Color::Cyan)
-                .fg(Color::Black)
-                .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default()
-        };
-
         let list = List::new(list_items)
-            .block(
-                Block::new()
-                    .border_type(BorderType::Plain)
-                    .borders(Borders::all())
-                    .border_style(border_style)
-                    .title(" Expected Item Selection "),
-            )
-            .highlight_style(highlight_style);
+            .block(style::block_with_focused(is_focused).title(" Expected Item Selection "))
+            .highlight_style(style::highlight_with_focused(is_focused));
 
         StatefulWidget::render(list, area, buf, &mut list_state);
 

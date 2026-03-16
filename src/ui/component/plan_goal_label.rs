@@ -2,11 +2,12 @@ use ratatui::buffer::Buffer;
 use ratatui::crossterm::event::Event;
 use ratatui::layout::Rect;
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, BorderType, Borders, Paragraph, Widget};
+use ratatui::widgets::{Paragraph, Widget};
 
 use crate::infrastructure::util::component::Component;
 use crate::infrastructure::util::state::State;
 use crate::ui::state::PlanTabState;
+use crate::ui::style;
 
 pub struct PlanGoalLabelComponent {
     plan_tab_state: State<PlanTabState>,
@@ -43,12 +44,7 @@ impl Widget for &PlanGoalLabelComponent {
                 .unwrap_or(Span::from("(None)")),
         ]);
 
-        let paragraph = Paragraph::new(line).block(
-            Block::new()
-                .border_type(BorderType::Plain)
-                .borders(Borders::all())
-                .title(" Goal "),
-        );
+        let paragraph = Paragraph::new(line).block(style::block_default().title(" Goal "));
 
         paragraph.render(area, buf);
     }

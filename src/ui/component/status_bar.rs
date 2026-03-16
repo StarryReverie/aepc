@@ -3,11 +3,12 @@ use ratatui::crossterm::event::Event;
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Style};
 use ratatui::text::Span;
-use ratatui::widgets::{Block, BorderType, Borders, Paragraph, Widget};
+use ratatui::widgets::{Paragraph, Widget};
 
 use crate::infrastructure::util::component::Component;
 use crate::infrastructure::util::state::State;
 use crate::ui::state::{AppState, StatusLevel};
+use crate::ui::style;
 
 pub struct StatusBarComponent {
     app_state: State<AppState>,
@@ -35,15 +36,8 @@ impl Widget for &StatusBarComponent {
             StatusLevel::Error => Color::Red,
         };
 
-        let text = Span::styled(format!(" {}", state.status_text()), Style::new().fg(color));
-
-        let paragraph = Paragraph::new(text).block(
-            Block::new()
-                .border_type(BorderType::Plain)
-                .borders(Borders::all())
-                .title(" Status "),
-        );
-
+        let text = Span::raw(format!(" {}", state.status_text())).style(Style::new().fg(color));
+        let paragraph = Paragraph::new(text).block(style::block_default().title(" Status "));
         paragraph.render(area, buf);
     }
 }
