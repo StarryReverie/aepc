@@ -1,3 +1,4 @@
+use std::backtrace::Backtrace;
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::ops::Add;
@@ -55,11 +56,11 @@ impl Add for Replica {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Snafu)]
+#[derive(Debug, Snafu)]
 #[non_exhaustive]
 pub enum NewReplicaError {
     #[snafu(display("replica should be positive"))]
-    ZeroOrNegative,
+    ZeroOrNegative { backtrace: Backtrace },
 }
 
 #[cfg(test)]
@@ -79,11 +80,11 @@ mod tests {
     fn test_non_positive_replica_returns_error() {
         assert!(matches!(
             Replica::new(0.0),
-            Err(NewReplicaError::ZeroOrNegative),
+            Err(NewReplicaError::ZeroOrNegative { .. }),
         ));
         assert!(matches!(
             Replica::new(-10.0),
-            Err(NewReplicaError::ZeroOrNegative),
+            Err(NewReplicaError::ZeroOrNegative { .. }),
         ));
     }
 

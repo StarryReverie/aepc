@@ -1,3 +1,4 @@
+use std::backtrace::Backtrace;
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::ops::{Add, Div, Mul};
@@ -85,11 +86,11 @@ impl Mul<Period> for Flow {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Snafu)]
+#[derive(Debug, Snafu)]
 #[non_exhaustive]
 pub enum NewFlowError {
     #[snafu(display("flow should not be negative"))]
-    Negative,
+    Negative { backtrace: Backtrace },
 }
 
 #[cfg(test)]
@@ -107,7 +108,10 @@ mod tests {
 
     #[test]
     fn test_negative_flow_returns_error() {
-        assert!(matches!(Flow::new(-10.0), Err(NewFlowError::Negative)));
+        assert!(matches!(
+            Flow::new(-10.0),
+            Err(NewFlowError::Negative { .. })
+        ));
     }
 
     #[test]

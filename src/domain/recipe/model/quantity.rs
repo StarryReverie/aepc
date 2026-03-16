@@ -1,3 +1,4 @@
+use std::backtrace::Backtrace;
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::ops::{Add, Div};
@@ -73,11 +74,11 @@ impl Div<Flow> for Quantity {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Snafu)]
+#[derive(Debug, Snafu)]
 #[non_exhaustive]
 pub enum NewQuantityError {
     #[snafu(display("quantity should not be negative"))]
-    Negative,
+    Negative { backtrace: Backtrace },
 }
 
 #[cfg(test)]
@@ -97,7 +98,7 @@ mod tests {
     fn test_negative_quantity_returns_error() {
         assert!(matches!(
             Quantity::new(-10.0),
-            Err(NewQuantityError::Negative),
+            Err(NewQuantityError::Negative { .. }),
         ));
     }
 

@@ -1,3 +1,4 @@
+use std::backtrace::Backtrace;
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
@@ -41,11 +42,11 @@ impl Display for Power {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Snafu)]
+#[derive(Debug, Snafu)]
 #[non_exhaustive]
 pub enum NewPowerError {
     #[snafu(display("power should not be negative"))]
-    Negative,
+    Negative { backtrace: Backtrace },
 }
 
 #[cfg(test)]
@@ -63,7 +64,10 @@ mod tests {
 
     #[test]
     fn test_negative_power_returns_error() {
-        assert!(matches!(Power::new(-10.0), Err(NewPowerError::Negative)));
+        assert!(matches!(
+            Power::new(-10.0),
+            Err(NewPowerError::Negative { .. })
+        ));
     }
 
     #[test]

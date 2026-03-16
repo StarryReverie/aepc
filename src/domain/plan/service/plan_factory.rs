@@ -1,3 +1,4 @@
+use std::backtrace::Backtrace;
 use std::sync::Arc;
 
 use anyhow::Error as AnyhowError;
@@ -151,9 +152,9 @@ impl PlanFactory for PlanFactoryImpl {
 #[non_exhaustive]
 pub enum CreatePlanError {
     #[snafu(display("could not find recipe that can produce {goal:?}"))]
-    NoRecipe { goal: ItemId },
+    NoRecipe { goal: ItemId, backtrace: Backtrace },
     #[snafu(display("cyclic flow demanded by backward exceeds current production"))]
-    ExcessiveCyclicFlow,
+    ExcessiveCyclicFlow { backtrace: Backtrace },
     #[snafu(display("infrastructure error: {message}"))]
     Infrastructure {
         message: String,

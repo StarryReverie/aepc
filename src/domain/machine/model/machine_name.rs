@@ -1,3 +1,4 @@
+use std::backtrace::Backtrace;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
 use getset::Getters;
@@ -17,11 +18,11 @@ impl MachineName {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Snafu)]
+#[derive(Debug, Snafu)]
 #[non_exhaustive]
 pub enum NewMachineNameError {
     #[snafu(display("machine name should not be empty"))]
-    Empty,
+    Empty { backtrace: Backtrace },
 }
 
 impl Display for MachineName {
@@ -47,7 +48,7 @@ mod tests {
     fn test_empty_string_returns_error() {
         assert!(matches!(
             MachineName::new(""),
-            Err(NewMachineNameError::Empty)
+            Err(NewMachineNameError::Empty { .. })
         ));
     }
 

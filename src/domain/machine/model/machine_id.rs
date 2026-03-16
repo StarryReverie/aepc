@@ -1,3 +1,5 @@
+use std::backtrace::Backtrace;
+
 use getset::Getters;
 use snafu::prelude::*;
 
@@ -23,13 +25,15 @@ impl MachineId {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Snafu)]
+#[derive(Debug, Snafu)]
 #[non_exhaustive]
 pub enum NewMachineIdError {
     #[snafu(display("machine ID should not be empty"))]
-    Empty,
-    #[snafu(display("machine ID should only contain alphabets, numbers, hyphens and underscores"))]
-    InvalidCharacter,
+    Empty { backtrace: Backtrace },
+    #[snafu(display(
+        "machine ID should only contain alphabets, numbers, hyphens and underscores"
+    ))]
+    InvalidCharacter { backtrace: Backtrace },
 }
 
 #[cfg(test)]
@@ -47,7 +51,10 @@ mod tests {
 
     #[test]
     fn test_empty_string_returns_error() {
-        assert!(matches!(MachineId::new(""), Err(NewMachineIdError::Empty)));
+        assert!(matches!(
+            MachineId::new(""),
+            Err(NewMachineIdError::Empty { .. })
+        ));
     }
 
     #[test]
@@ -55,7 +62,7 @@ mod tests {
         for invalid in ["test id", "abc!", "test.id", "测试"] {
             assert!(matches!(
                 MachineId::new(invalid),
-                Err(NewMachineIdError::InvalidCharacter),
+                Err(NewMachineIdError::InvalidCharacter { .. }),
             ));
         }
     }

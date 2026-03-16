@@ -1,3 +1,5 @@
+use std::backtrace::Backtrace;
+
 use getset::Getters;
 use snafu::prelude::*;
 
@@ -65,15 +67,15 @@ impl Recipe {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Snafu)]
+#[derive(Debug, Snafu)]
 #[non_exhaustive]
 pub enum NewRecipeError {
     #[snafu(display("recipe must have at least one product"))]
-    NoProducts,
+    NoProducts { backtrace: Backtrace },
     #[snafu(display("recipe has duplicate materials"))]
-    DuplicateMaterial,
+    DuplicateMaterial { backtrace: Backtrace },
     #[snafu(display("recipe has duplicate products"))]
-    DuplicateProduct,
+    DuplicateProduct { backtrace: Backtrace },
 }
 
 #[cfg(test)]
@@ -92,7 +94,7 @@ mod tests {
 
         assert!(matches!(
             Recipe::new(id, machine, period, materials, products),
-            Err(NewRecipeError::NoProducts),
+            Err(NewRecipeError::NoProducts { .. }),
         ));
         Ok(())
     }
@@ -110,7 +112,7 @@ mod tests {
 
         assert!(matches!(
             Recipe::new(id, machine, period, materials, products),
-            Err(NewRecipeError::DuplicateMaterial),
+            Err(NewRecipeError::DuplicateMaterial { .. }),
         ));
         Ok(())
     }
@@ -128,7 +130,7 @@ mod tests {
 
         assert!(matches!(
             Recipe::new(id, machine, period, materials, products),
-            Err(NewRecipeError::DuplicateProduct),
+            Err(NewRecipeError::DuplicateProduct { .. }),
         ));
         Ok(())
     }
@@ -146,11 +148,9 @@ mod tests {
         let rate = recipe.get_product_rate(&ItemId::new("item2")?).unwrap();
         assert_eq!(rate, Rate::new(120.0)?);
 
-        assert!(
-            recipe
-                .get_product_rate(&ItemId::new("nonexistent")?)
-                .is_none()
-        );
+        assert!(recipe
+            .get_product_rate(&ItemId::new("nonexistent")?)
+            .is_none());
         Ok(())
     }
 

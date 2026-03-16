@@ -1,3 +1,4 @@
+use std::backtrace::Backtrace;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
 use getset::Getters;
@@ -23,11 +24,11 @@ impl Display for ItemName {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Snafu)]
+#[derive(Debug, Snafu)]
 #[non_exhaustive]
 pub enum NewItemNameError {
     #[snafu(display("item name should not be empty"))]
-    Empty,
+    Empty { backtrace: Backtrace },
 }
 
 #[cfg(test)]
@@ -45,7 +46,10 @@ mod tests {
 
     #[test]
     fn test_empty_string_returns_error() {
-        assert!(matches!(ItemName::new(""), Err(NewItemNameError::Empty)));
+        assert!(matches!(
+            ItemName::new(""),
+            Err(NewItemNameError::Empty { .. })
+        ));
     }
 
     #[test]

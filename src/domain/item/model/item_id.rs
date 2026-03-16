@@ -1,3 +1,5 @@
+use std::backtrace::Backtrace;
+
 use getset::Getters;
 use snafu::prelude::*;
 
@@ -23,13 +25,13 @@ impl ItemId {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Snafu)]
+#[derive(Debug, Snafu)]
 #[non_exhaustive]
 pub enum NewItemIdError {
     #[snafu(display("item ID should not be empty"))]
-    Empty,
+    Empty { backtrace: Backtrace },
     #[snafu(display("item ID should only contain alphabets, numbers, hyphens and underscores"))]
-    InvalidCharacter,
+    InvalidCharacter { backtrace: Backtrace },
 }
 
 #[cfg(test)]
@@ -47,7 +49,7 @@ mod tests {
 
     #[test]
     fn test_empty_string_returns_error() {
-        assert!(matches!(ItemId::new(""), Err(NewItemIdError::Empty)));
+        assert!(matches!(ItemId::new(""), Err(NewItemIdError::Empty { .. })));
     }
 
     #[test]
@@ -55,7 +57,7 @@ mod tests {
         for invalid in ["test id", "abc!", "test.id", "测试"] {
             assert!(matches!(
                 ItemId::new(invalid),
-                Err(NewItemIdError::InvalidCharacter),
+                Err(NewItemIdError::InvalidCharacter { .. }),
             ));
         }
     }

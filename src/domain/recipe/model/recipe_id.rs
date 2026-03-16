@@ -1,3 +1,5 @@
+use std::backtrace::Backtrace;
+
 use getset::Getters;
 use snafu::prelude::*;
 
@@ -23,13 +25,13 @@ impl RecipeId {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Snafu)]
+#[derive(Debug, Snafu)]
 #[non_exhaustive]
 pub enum NewRecipeIdError {
     #[snafu(display("recipe ID should not be empty"))]
-    Empty,
+    Empty { backtrace: Backtrace },
     #[snafu(display("recipe ID should only contain alphabets, numbers, hyphens and underscores"))]
-    InvalidCharacter,
+    InvalidCharacter { backtrace: Backtrace },
 }
 
 #[cfg(test)]
@@ -47,7 +49,10 @@ mod tests {
 
     #[test]
     fn test_empty_string_returns_error() {
-        assert!(matches!(RecipeId::new(""), Err(NewRecipeIdError::Empty)));
+        assert!(matches!(
+            RecipeId::new(""),
+            Err(NewRecipeIdError::Empty { .. })
+        ));
     }
 
     #[test]
@@ -55,7 +60,7 @@ mod tests {
         for invalid in ["test id", "abc!", "test.id", "测试"] {
             assert!(matches!(
                 RecipeId::new(invalid),
-                Err(NewRecipeIdError::InvalidCharacter),
+                Err(NewRecipeIdError::InvalidCharacter { .. }),
             ));
         }
     }

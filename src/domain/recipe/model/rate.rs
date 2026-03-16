@@ -1,3 +1,4 @@
+use std::backtrace::Backtrace;
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::ops::{Add, Mul};
@@ -71,11 +72,11 @@ impl Mul<Rate> for Replica {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Snafu)]
+#[derive(Debug, Snafu)]
 #[non_exhaustive]
 pub enum NewRateError {
     #[snafu(display("rate should not be negative"))]
-    Negative,
+    Negative { backtrace: Backtrace },
 }
 
 #[cfg(test)]
@@ -93,7 +94,10 @@ mod tests {
 
     #[test]
     fn test_negative_rate_returns_error() {
-        assert!(matches!(Rate::new(-10.0), Err(NewRateError::Negative)));
+        assert!(matches!(
+            Rate::new(-10.0),
+            Err(NewRateError::Negative { .. })
+        ));
     }
 
     #[test]

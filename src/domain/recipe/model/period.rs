@@ -1,3 +1,4 @@
+use std::backtrace::Backtrace;
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
@@ -41,11 +42,11 @@ impl Display for Period {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Snafu)]
+#[derive(Debug, Snafu)]
 #[non_exhaustive]
 pub enum NewPeriodError {
     #[snafu(display("period should be positive"))]
-    ZeroOrNegative,
+    ZeroOrNegative { backtrace: Backtrace },
 }
 
 #[cfg(test)]
@@ -65,11 +66,11 @@ mod tests {
     fn test_non_positive_period_returns_error() {
         assert!(matches!(
             Period::new(0.0),
-            Err(NewPeriodError::ZeroOrNegative),
+            Err(NewPeriodError::ZeroOrNegative { .. }),
         ));
         assert!(matches!(
             Period::new(-10.0),
-            Err(NewPeriodError::ZeroOrNegative),
+            Err(NewPeriodError::ZeroOrNegative { .. }),
         ));
     }
 

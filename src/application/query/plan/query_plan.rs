@@ -1,3 +1,5 @@
+use std::backtrace::Backtrace;
+
 use anyhow::Error as AnyhowError;
 use getset::Getters;
 use snafu::prelude::*;
@@ -29,7 +31,7 @@ pub enum QueryPlanError {
     #[snafu(display("could not find a planning solution"))]
     Plan { source: CreatePlanError },
     #[snafu(display("entity not found: {entity}"))]
-    NotFound { entity: String },
+    NotFound { entity: String, backtrace: Backtrace },
     #[snafu(display("infrastructure error when querying plan: {message}"))]
     Infrastructure {
         message: String,
