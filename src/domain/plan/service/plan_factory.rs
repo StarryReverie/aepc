@@ -34,6 +34,7 @@ impl PlanFactoryImpl {
         flow_goal: Flow,
         resolution_trace: &mut Vec<ResolutionTraceElement>,
     ) -> Result<(Plan, Vec<BackwardDemandElement>), CreatePlanError> {
+        ensure!(flow_goal != Flow::zero(), ZeroFlowSnafu);
         if let Some(target) = resolution_trace.iter().rfind(|e| &e.goal == goal) {
             let plan = Plan::cyclic(CyclicStep::new(
                 goal.clone(),
@@ -151,6 +152,8 @@ impl PlanFactory for PlanFactoryImpl {
 #[derive(Debug, Snafu)]
 #[non_exhaustive]
 pub enum CreatePlanError {
+    #[snafu(display("flow of the goal item should not be zero"))]
+    ZeroFlow { backtrace: Backtrace },
     #[snafu(display("could not find recipe that can produce {goal:?}"))]
     NoRecipe { goal: ItemId, backtrace: Backtrace },
     #[snafu(display("cyclic flow demanded by backward exceeds current production"))]
