@@ -1,3 +1,4 @@
+use aepc::infrastructure::data::{ItemConstantRepository, MachineConstantRepository};
 use anyhow::Result as AnyhowResult;
 use futures::StreamExt;
 use ratatui::Terminal;
@@ -7,10 +8,10 @@ use tokio::time::Duration;
 
 use aepc::application::query::item::{DynItemQueryService, ItemQueryServiceImpl};
 use aepc::application::query::plan::{DynPlanQueryService, PlanQueryServiceImpl};
-use aepc::domain::item::model::{Item, ItemId, ItemName};
-use aepc::domain::item::outbound::{DynItemRepository, ItemRepository};
-use aepc::domain::machine::model::{Machine, MachineId, MachineName, Power};
-use aepc::domain::machine::outbound::{DynMachineRepository, MachineRepository};
+use aepc::domain::item::model::ItemId;
+use aepc::domain::item::outbound::DynItemRepository;
+use aepc::domain::machine::model::MachineId;
+use aepc::domain::machine::outbound::DynMachineRepository;
 use aepc::domain::plan::service::{DynPlanFactory, PlanFactoryImpl};
 use aepc::domain::recipe::model::{Period, Quantity, Recipe, RecipeId};
 use aepc::domain::recipe::outbound::{DynRecipeRepository, RecipeRepository};
@@ -55,13 +56,14 @@ where
 }
 
 fn setup() -> (AppComponent, State<AppState>) {
-    let item_repo = DynItemRepository::new_arc(DemoItemRepository::new());
-    let machine_repo = DynMachineRepository::new_arc(DemoMachineRepository::new());
+    let item_repo = DynItemRepository::new_arc(ItemConstantRepository::new());
+    let machine_repo = DynMachineRepository::new_arc(MachineConstantRepository::new());
     let recipe_repo = DynRecipeRepository::new_arc(DemoRecipeRepository::new());
+
+    let plan_factory = DynPlanFactory::new_arc(PlanFactoryImpl::new(recipe_repo.clone()));
 
     let item_query_service =
         DynItemQueryService::new_arc(ItemQueryServiceImpl::new(item_repo.clone()));
-    let plan_factory = DynPlanFactory::new_arc(PlanFactoryImpl::new(recipe_repo.clone()));
     let plan_query_service = DynPlanQueryService::new_arc(PlanQueryServiceImpl::new(
         item_repo,
         machine_repo,
@@ -131,94 +133,6 @@ fn setup() -> (AppComponent, State<AppState>) {
     plan_tree_list_context.run();
 
     (app, app_state)
-}
-
-struct DemoItemRepository {
-    items: Vec<Item>,
-}
-
-impl DemoItemRepository {
-    fn new() -> Self {
-        Self {
-            items: vec![
-                Item::new(
-                    ItemId::new("iron_ore").unwrap(),
-                    ItemName::new("Iron Ore").unwrap(),
-                ),
-                Item::new(
-                    ItemId::new("iron_plate").unwrap(),
-                    ItemName::new("Iron Plate").unwrap(),
-                ),
-                Item::new(
-                    ItemId::new("iron_ingot").unwrap(),
-                    ItemName::new("Iron Ingot").unwrap(),
-                ),
-                Item::new(
-                    ItemId::new("copper_ore").unwrap(),
-                    ItemName::new("Copper Ore").unwrap(),
-                ),
-                Item::new(
-                    ItemId::new("copper_ingot").unwrap(),
-                    ItemName::new("Copper Ingot").unwrap(),
-                ),
-            ],
-        }
-    }
-}
-
-impl ItemRepository for DemoItemRepository {
-    async fn get(&self, item_id: &ItemId) -> AnyhowResult<Option<Item>> {
-        Ok(self.items.iter().find(|item| item.id() == item_id).cloned())
-    }
-
-    async fn find_all_by_name_containing_pattern(&self, pattern: &str) -> AnyhowResult<Vec<Item>> {
-        let pattern_lower = pattern.to_lowercase();
-        Ok(self
-            .items
-            .iter()
-            .filter(|item| item.name().value().to_lowercase().contains(&pattern_lower))
-            .cloned()
-            .collect())
-    }
-}
-
-struct DemoMachineRepository {
-    machines: Vec<Machine>,
-}
-
-impl DemoMachineRepository {
-    fn new() -> Self {
-        Self {
-            machines: vec![
-                Machine::new(
-                    MachineId::new("mine").unwrap(),
-                    MachineName::new("Mining Machine").unwrap(),
-                    Power::new(50.0).unwrap(),
-                ),
-                Machine::new(
-                    MachineId::new("smelter").unwrap(),
-                    MachineName::new("Smelter").unwrap(),
-                    Power::new(200.0).unwrap(),
-                ),
-                Machine::new(
-                    MachineId::new("plate_press").unwrap(),
-                    MachineName::new("Plate Press").unwrap(),
-                    Power::new(100.0).unwrap(),
-                ),
-                Machine::new(
-                    MachineId::new("copper_smelter").unwrap(),
-                    MachineName::new("Copper Smelter").unwrap(),
-                    Power::new(150.0).unwrap(),
-                ),
-            ],
-        }
-    }
-}
-
-impl MachineRepository for DemoMachineRepository {
-    async fn get(&self, machine_id: &MachineId) -> AnyhowResult<Option<Machine>> {
-        Ok(self.machines.iter().find(|m| m.id() == machine_id).cloned())
-    }
 }
 
 struct DemoRecipeRepository {
