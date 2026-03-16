@@ -16,7 +16,7 @@ impl RecipeId {
         ensure!(
             value
                 .chars()
-                .all(|ch| ch.is_ascii_alphanumeric() || ch == '-' || ch == '_'),
+                .all(|ch| ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' || ch == '+'),
             InvalidCharacterSnafu,
         );
         Ok(Self {
@@ -30,7 +30,9 @@ impl RecipeId {
 pub enum NewRecipeIdError {
     #[snafu(display("recipe ID should not be empty"))]
     Empty { backtrace: Backtrace },
-    #[snafu(display("recipe ID should only contain alphabets, numbers, hyphens and underscores"))]
+    #[snafu(display(
+        "recipe ID should only contain alphabets, numbers, hyphens, underscores and plus"
+    ))]
     InvalidCharacter { backtrace: Backtrace },
 }
 

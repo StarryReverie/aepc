@@ -1,4 +1,3 @@
-use aepc::infrastructure::data::{ItemConstantRepository, MachineConstantRepository};
 use anyhow::Result as AnyhowResult;
 use futures::StreamExt;
 use ratatui::Terminal;
@@ -8,13 +7,11 @@ use tokio::time::Duration;
 
 use aepc::application::query::item::{DynItemQueryService, ItemQueryServiceImpl};
 use aepc::application::query::plan::{DynPlanQueryService, PlanQueryServiceImpl};
-use aepc::domain::item::model::ItemId;
 use aepc::domain::item::outbound::DynItemRepository;
-use aepc::domain::machine::model::MachineId;
 use aepc::domain::machine::outbound::DynMachineRepository;
 use aepc::domain::plan::service::{DynPlanFactory, PlanFactoryImpl};
-use aepc::domain::recipe::model::{Period, Quantity, Recipe, RecipeId};
-use aepc::domain::recipe::outbound::{DynRecipeRepository, RecipeRepository};
+use aepc::domain::recipe::outbound::DynRecipeRepository;
+use aepc::infrastructure::data::*;
 use aepc::infrastructure::util::component::Component;
 use aepc::infrastructure::util::state::State;
 use aepc::ui::component::*;
@@ -58,7 +55,7 @@ where
 fn setup() -> (AppComponent, State<AppState>) {
     let item_repo = DynItemRepository::new_arc(ItemConstantRepository::new());
     let machine_repo = DynMachineRepository::new_arc(MachineConstantRepository::new());
-    let recipe_repo = DynRecipeRepository::new_arc(DemoRecipeRepository::new());
+    let recipe_repo = DynRecipeRepository::new_arc(RecipeConstantRepository::new());
 
     let plan_factory = DynPlanFactory::new_arc(PlanFactoryImpl::new(recipe_repo.clone()));
 
@@ -133,83 +130,4 @@ fn setup() -> (AppComponent, State<AppState>) {
     plan_tree_list_context.run();
 
     (app, app_state)
-}
-
-struct DemoRecipeRepository {
-    recipes: Vec<Recipe>,
-}
-
-impl DemoRecipeRepository {
-    fn new() -> Self {
-        // Materials: (item_id, quantity)
-        // Products: (item_id, quantity)
-        let iron_ore = ItemId::new("iron_ore").unwrap();
-        let iron_plate = ItemId::new("iron_plate").unwrap();
-        let iron_ingot = ItemId::new("iron_ingot").unwrap();
-        let copper_ore = ItemId::new("copper_ore").unwrap();
-        let copper_ingot = ItemId::new("copper_ingot").unwrap();
-        let mine = MachineId::new("mine").unwrap();
-        let smelter = MachineId::new("smelter").unwrap();
-        let plate_press = MachineId::new("plate_press").unwrap();
-        let copper_smelter = MachineId::new("copper_smelter").unwrap();
-
-        Self {
-            recipes: vec![
-                // Mine: 1 iron ore per minute
-                Recipe::new(
-                    RecipeId::new("r_mine_iron").unwrap(),
-                    mine.clone(),
-                    Period::new(60.0).unwrap(),
-                    vec![],
-                    vec![(iron_ore.clone(), Quantity::new(60.0).unwrap())],
-                )
-                .unwrap(),
-                // Smelter: 1 iron ingot from 2 iron ores (60s per operation)
-                Recipe::new(
-                    RecipeId::new("r_smelt_iron").unwrap(),
-                    smelter.clone(),
-                    Period::new(60.0).unwrap(),
-                    vec![(iron_ore.clone(), Quantity::new(2.0).unwrap())],
-                    vec![(iron_ingot.clone(), Quantity::new(1.0).unwrap())],
-                )
-                .unwrap(),
-                // Plate Press: 1 iron plate from 1 iron ingot (30s per operation)
-                Recipe::new(
-                    RecipeId::new("r_press_plate").unwrap(),
-                    plate_press.clone(),
-                    Period::new(30.0).unwrap(),
-                    vec![(iron_ingot.clone(), Quantity::new(1.0).unwrap())],
-                    vec![(iron_plate.clone(), Quantity::new(1.0).unwrap())],
-                )
-                .unwrap(),
-                // Copper Smelter: 1 copper ingot from 2 copper ores
-                Recipe::new(
-                    RecipeId::new("r_smelt_copper").unwrap(),
-                    copper_smelter.clone(),
-                    Period::new(60.0).unwrap(),
-                    vec![(copper_ore.clone(), Quantity::new(2.0).unwrap())],
-                    vec![(copper_ingot.clone(), Quantity::new(1.0).unwrap())],
-                )
-                .unwrap(),
-            ],
-        }
-    }
-}
-
-impl RecipeRepository for DemoRecipeRepository {
-    async fn get(&self, recipe_id: &RecipeId) -> AnyhowResult<Option<Recipe>> {
-        Ok(self.recipes.iter().find(|r| r.id() == recipe_id).cloned())
-    }
-
-    async fn find_all_by_products_containing_target(
-        &self,
-        target_id: &ItemId,
-    ) -> AnyhowResult<Vec<Recipe>> {
-        Ok(self
-            .recipes
-            .iter()
-            .filter(|recipe| recipe.products().iter().any(|(id, _)| id == target_id))
-            .cloned()
-            .collect())
-    }
 }
