@@ -126,6 +126,15 @@ impl PlanQueryServiceImpl {
                 entity: format!("machine {machine_id:?}"),
             })?;
 
+        let replica_full = if let Some(replica_backward) = replica_backward {
+            replica_effective + replica_backward
+        } else {
+            replica_effective
+        };
+
+        let machine_power = Power::new(replica_full.value() * machine.power().value())
+            .expect("machine power should be positive");
+
         let product_rate = recipe
             .get_product_rate(goal_id)
             .expect("recipe should produce the goal product");
@@ -143,7 +152,7 @@ impl PlanQueryServiceImpl {
             recipe_id: recipe_id.clone(),
             machine_id: machine_id.clone(),
             machine_name: machine.name().clone(),
-            machine_power: *machine.power(),
+            machine_power,
             flow_effective,
             flow_backward,
             replica_effective,
@@ -212,13 +221,16 @@ impl PlanQueryServiceImpl {
                 entity: format!("machine {machine_id:?}"),
             })?;
 
+        let machine_power = Power::new(replica_effective.value() * machine.power().value())
+            .expect("machine power should be positive");
+
         Ok(PlanDetail {
             goal_id: goal_id.clone(),
             goal_name: item.name().clone(),
             recipe_id: recipe_id.clone(),
             machine_id: machine_id.clone(),
             machine_name: machine.name().clone(),
-            machine_power: *machine.power(),
+            machine_power,
             flow_effective: *flow_goal,
             flow_backward: None,
             replica_effective,
