@@ -5,8 +5,10 @@ mod goal_item_search_input;
 mod goal_item_search_list;
 mod plan_tab;
 mod plan_tree_list;
+mod status_bar;
 
 pub use app::{AppAction, AppState, AppStateManager, StatusLevel};
+pub use status_bar::{StatusBarState, StatusBarStateManager};
 pub use goal_flow_input::create_goal_flow_on_confirm;
 pub use goal_item_search::{GoalItemSearchAction, GoalItemSearchState, GoalItemSearchStateManager};
 pub use goal_item_search_input::{

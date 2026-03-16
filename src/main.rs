@@ -69,6 +69,7 @@ fn setup() -> (AppComponent, State<AppState>) {
     ));
 
     let app_context = AppStateManager::context();
+    let status_bar_context = StatusBarStateManager::context(app_context.state());
     let plan_tab_context = PlanTabStateManager::context();
     let goal_item_search_context = GoalItemSearchStateManager::context();
     let goal_item_search_list_context = GoalItemSearchListStateManager::context(
@@ -117,13 +118,14 @@ fn setup() -> (AppComponent, State<AppState>) {
             plan_tab_context.requester(),
             plan_tab_context.state(),
         ),
-        StatusBarComponent::new(app_context.state()),
+        StatusBarComponent::new(status_bar_context.state(), app_context.state()),
         app_context.requester(),
     );
 
     let app_state = app_context.state();
 
     app_context.run();
+    status_bar_context.run();
     plan_tab_context.run();
     goal_item_search_context.run();
     goal_item_search_list_context.run();

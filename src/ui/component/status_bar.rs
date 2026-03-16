@@ -3,20 +3,24 @@ use ratatui::crossterm::event::Event;
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Style};
 use ratatui::text::Span;
-use ratatui::widgets::{Paragraph, Widget};
+use ratatui::widgets::{Padding, Paragraph, Widget};
 
 use crate::infrastructure::util::component::Component;
 use crate::infrastructure::util::state::State;
-use crate::ui::state::{AppState, StatusLevel};
+use crate::ui::state::{AppState, StatusBarState, StatusLevel};
 use crate::ui::style;
 
 pub struct StatusBarComponent {
+    status_bar_state: State<StatusBarState>,
     app_state: State<AppState>,
 }
 
 impl StatusBarComponent {
-    pub fn new(app_state: State<AppState>) -> Self {
-        Self { app_state }
+    pub fn new(status_bar_state: State<StatusBarState>, app_state: State<AppState>) -> Self {
+        Self {
+            status_bar_state,
+            app_state,
+        }
     }
 }
 
@@ -29,15 +33,24 @@ impl Widget for &StatusBarComponent {
     where
         Self: Sized,
     {
-        let state = self.app_state.get();
+        let status_bar_state = self.status_bar_state.get();
+        let app_state = self.app_state.get();
 
-        let color = match state.status_level() {
+        let color = match app_state.status_level() {
             StatusLevel::Info => Color::Green,
             StatusLevel::Error => Color::Red,
         };
 
-        let text = Span::raw(format!(" {}", state.status_text())).style(Style::new().fg(color));
-        let paragraph = Paragraph::new(text).block(style::block_default().title(" Status "));
+        let text = Span::raw(status_bar_state.text()).style(Style::new().fg(color));
+
+        let paragraph = Paragraph::new(text)
+            .block(
+                style::block_default()
+                    .title(" Status ")
+                    .padding(Padding::horizontal(1)),
+            )
+            .scroll((0, status_bar_state.scroll_offset() as u16));
+
         paragraph.render(area, buf);
     }
 }
