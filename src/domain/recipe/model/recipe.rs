@@ -57,6 +57,21 @@ impl Recipe {
             .map(|(_, quantity)| *quantity / self.period / Replica::one())
     }
 
+    pub fn get_products_rate(&self) -> Vec<(&ItemId, Rate)> {
+        self.get_items_rate(&self.products)
+    }
+
+    pub fn get_materials_rate(&self) -> Vec<(&ItemId, Rate)> {
+        self.get_items_rate(&self.materials)
+    }
+
+    fn get_items_rate<'a>(&self, items: &'a [(ItemId, Quantity)]) -> Vec<(&'a ItemId, Rate)> {
+        items
+            .iter()
+            .map(|(item, quantity)| (item, *quantity / self.period / Replica::one()))
+            .collect()
+    }
+
     pub fn get_materials_flow(&self, replica: Replica) -> Vec<(&ItemId, Flow)> {
         self.materials
             .iter()
@@ -148,9 +163,11 @@ mod tests {
         let rate = recipe.get_product_rate(&ItemId::new("item2")?).unwrap();
         assert_eq!(rate, Rate::new(120.0)?);
 
-        assert!(recipe
-            .get_product_rate(&ItemId::new("nonexistent")?)
-            .is_none());
+        assert!(
+            recipe
+                .get_product_rate(&ItemId::new("nonexistent")?)
+                .is_none()
+        );
         Ok(())
     }
 

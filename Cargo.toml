@@ -11,6 +11,7 @@ crossterm = { version = "0.29.0", features = ["event-stream"] }
 dynosaur = "0.3.0"
 futures = "0.3"
 getset = "0.1.6"
+good_lp = { version = "1.15.0", features = ["microlp"], default-features = false }
 ratatui = "0.30.0"
 snafu = { version = "0.9.0", features = ["backtrace"] }
 tokio = { version = "1.50.0", features = ["sync", "rt", "tokio-macros", "test-util", "macros"] }
