@@ -10,7 +10,9 @@ use good_lp::{
 use snafu::prelude::*;
 
 use crate::domain::item::model::ItemId;
-use crate::domain::plan::model::{Plan, PlanNode};
+use crate::domain::plan::model::{
+    Plan, PlanNode, PlanNodeCyclicVariant, PlanNodeNormalVariant, PlanNodePartialVariant,
+};
 use crate::domain::recipe::model::{Flow, Recipe, RecipeId, Replica};
 use crate::domain::recipe::outbound::{DynRecipeRepository, RecipeRepository};
 
@@ -316,27 +318,36 @@ impl PlanFactoryImpl {
                 if let Some(frame) = trace.iter_mut().rfind(|frame| frame.target == material) {
                     frame.flow_cyclic = frame.flow_cyclic + flow_material;
                     let prev_depth = frame.depth;
-                    PlanNode::Cyclic {
-                        target: material.clone(),
-                        recipe: frame.main_producer.id().clone(),
-                        flow_next: flow_material,
-                        from_steps_ahead: trace.last().unwrap().depth - prev_depth + 1,
-                    }
+                    PlanNode::Cyclic(
+                        PlanNodeCyclicVariant::builder()
+                            .target(material.clone())
+                            .recipe(frame.main_producer.id().clone())
+                            .flow_next(flow_material)
+                            .from_steps_ahead(trace.last().unwrap().depth - prev_depth + 1)
+                            .build()
+                            .unwrap(),
+                    )
                 } else if let Some(node) = common_intermediates.get(material) {
-                    PlanNode::Partial {
-                        target: material.clone(),
-                        recipe: node.recipe().clone(),
-                        flow_next: flow_material,
-                    }
+                    PlanNode::Partial(
+                        PlanNodePartialVariant::builder()
+                            .target(material.clone())
+                            .recipe(node.recipe().clone())
+                            .flow_next(flow_material)
+                            .build()
+                            .unwrap(),
+                    )
                 } else {
                     let dependency =
                         self.build_plan_recursive(context, trace, common_intermediates, material);
                     if dependency.flow_next() > flow_material {
-                        let partial = PlanNode::Partial {
-                            target: material.clone(),
-                            recipe: dependency.recipe().clone(),
-                            flow_next: flow_material,
-                        };
+                        let partial = PlanNode::Partial(
+                            PlanNodePartialVariant::builder()
+                                .target(material.clone())
+                                .recipe(dependency.recipe().clone())
+                                .flow_next(flow_material)
+                                .build()
+                                .unwrap(),
+                        );
                         common_intermediates.insert(material.clone(), dependency);
                         partial
                     } else {
@@ -364,15 +375,18 @@ impl PlanFactoryImpl {
             (replica_all, None)
         };
 
-        let node = PlanNode::Normal {
-            target: target.clone(),
-            recipe: recipe.id().clone(),
-            rate,
-            replica_next,
-            replica_cyclic,
-            flow_extra,
-            dependencies,
-        };
+        let node = PlanNode::Normal(
+            PlanNodeNormalVariant::builder()
+                .target(target.clone())
+                .recipe(recipe.id().clone())
+                .rate(rate)
+                .replica_next(replica_next)
+                .replica_cyclic(replica_cyclic)
+                .flow_extra(flow_extra)
+                .dependencies(dependencies)
+                .build()
+                .unwrap(),
+        );
 
         trace.pop();
         node
