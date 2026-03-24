@@ -10,7 +10,7 @@ use good_lp::{
 use snafu::prelude::*;
 
 use crate::domain::item::model::ItemId;
-use crate::domain::plan::model::Plan;
+use crate::domain::plan::model::{Plan, PlanNode};
 use crate::domain::recipe::model::{Flow, Recipe, RecipeId, Replica};
 use crate::domain::recipe::outbound::{DynRecipeRepository, RecipeRepository};
 
@@ -39,12 +39,11 @@ impl PlanFactoryImpl {
         flow_goal: Flow,
     ) -> Result<Plan, CreatePlanError> {
         ensure!(flow_goal != Flow::zero(), ZeroFlowSnafu);
-
         let recipes = self.collect_related_recipes(goal).await?;
         let items = self.collect_related_items(&recipes);
         let solution = self.calc_raw_plan_solution(&recipes, &items, goal, flow_goal)?;
-
-        todo!()
+        let plan = self.build_plan(&recipes, &solution, goal);
+        Ok(plan)
     }
 
     async fn collect_related_recipes(
@@ -245,6 +244,139 @@ impl PlanFactoryImpl {
                 .collect(),
         })
     }
+
+    fn build_plan(
+        &self,
+        recipes: &HashMap<RecipeId, Recipe>,
+        solution: &RawPlanSolution,
+        goal: &ItemId,
+    ) -> Plan {
+        let mut item_producers = HashMap::new();
+        recipes
+            .values()
+            .filter(|recipe| solution.recipe_replica.contains_key(recipe.id()))
+            .for_each(|recipe| {
+                recipe.products().iter().for_each(|(item, _)| {
+                    let ps = item_producers.entry(item).or_insert(Vec::new());
+                    ps.push(recipe);
+                });
+            });
+
+        let item_main_producers = item_producers
+            .into_iter()
+            .map(|(id, producers)| {
+                let has_unique_product = producers.iter().find(|p| p.products().len() == 1);
+                let otherwise_first = producers.first();
+                let main_producer = *has_unique_product.or(otherwise_first).unwrap();
+                (id, main_producer)
+            })
+            .collect::<HashMap<&ItemId, &Recipe>>();
+
+        let context = BuildPlanContext {
+            recipes,
+            item_main_producers: &item_main_producers,
+            solution,
+        };
+        let mut trace = Vec::new();
+        let mut common_intermediates = HashMap::new();
+
+        let goal = self.build_plan_recursive(&context, &mut trace, &mut common_intermediates, goal);
+        Plan::new(goal, common_intermediates)
+    }
+
+    fn build_plan_recursive<'a>(
+        &self,
+        context: &BuildPlanContext<'a>,
+        trace: &mut Vec<BuildPlanTrace<'a>>,
+        common_intermediates: &mut HashMap<ItemId, PlanNode>,
+        target: &'a ItemId,
+    ) -> PlanNode {
+        let BuildPlanContext {
+            recipes,
+            item_main_producers,
+            solution,
+        } = context;
+
+        let recipe = recipes
+            .get(item_main_producers.get(target).unwrap().id())
+            .unwrap();
+        let rate = recipe.get_product_rate(target).unwrap();
+        let replica_all = *solution.recipe_replica.get(recipe.id()).unwrap();
+
+        trace.push(BuildPlanTrace {
+            depth: trace.len(),
+            target,
+            main_producer: recipe,
+            flow_cyclic: Flow::zero(),
+        });
+
+        let mut dependencies = Vec::new();
+        for (material, flow_material) in recipe.get_materials_flow(replica_all) {
+            let dependency =
+                if let Some(frame) = trace.iter_mut().rfind(|frame| frame.target == material) {
+                    frame.flow_cyclic = frame.flow_cyclic + flow_material;
+                    let prev_depth = frame.depth;
+                    PlanNode::Cyclic {
+                        target: material.clone(),
+                        recipe: frame.main_producer.id().clone(),
+                        flow_next: flow_material,
+                        from_steps_ahead: trace.last().unwrap().depth - prev_depth + 1,
+                    }
+                } else if let Some(node) = common_intermediates.get(material) {
+                    PlanNode::Partial {
+                        target: material.clone(),
+                        recipe: node.recipe().clone(),
+                        flow_next: flow_material,
+                    }
+                } else {
+                    let dependency =
+                        self.build_plan_recursive(context, trace, common_intermediates, material);
+                    if dependency.flow_next() > flow_material {
+                        let partial = PlanNode::Partial {
+                            target: material.clone(),
+                            recipe: dependency.recipe().clone(),
+                            flow_next: flow_material,
+                        };
+                        common_intermediates.insert(material.clone(), dependency);
+                        partial
+                    } else {
+                        dependency
+                    }
+                };
+            dependencies.push(dependency);
+        }
+
+        let flow_extra = Flow::new(
+            solution.item_production_flow.get(target).unwrap().value()
+                - (rate * replica_all).value(),
+        )
+        .expect("total production flow shouldn't be less than main producer recipe's flow");
+
+        let flow_cyclic = trace.last().unwrap().flow_cyclic;
+        let (replica_next, replica_cyclic) = if flow_cyclic > flow_extra {
+            let flow_cyclic_from_main = Flow::new(flow_cyclic.value() - flow_extra.value())
+                .expect("`flow_cyclic` should be greater than `flow_extra`");
+            let replica_cyclic = flow_cyclic_from_main / rate;
+            let replica_next = Replica::new(replica_all.value() - replica_cyclic.value())
+                .expect("`replica_all` should be greater than `replica_cyclic`");
+            (replica_next, Some(replica_cyclic))
+        } else {
+            (replica_all, None)
+        };
+
+        let node = PlanNode::Normal {
+            target: target.clone(),
+            recipe: recipe.id().clone(),
+            rate,
+            replica_next,
+            replica_cyclic,
+            flow_extra,
+            dependencies,
+        };
+
+        trace.pop();
+        node
+    }
 }
 
 impl PlanFactory for PlanFactoryImpl {
@@ -278,4 +410,19 @@ struct RawPlanSolution {
     item_production_flow: HashMap<ItemId, Flow>,
     item_consumption_flow: HashMap<ItemId, Flow>,
     item_unused_flow: HashMap<ItemId, Flow>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct BuildPlanContext<'a> {
+    recipes: &'a HashMap<RecipeId, Recipe>,
+    item_main_producers: &'a HashMap<&'a ItemId, &'a Recipe>,
+    solution: &'a RawPlanSolution,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct BuildPlanTrace<'a> {
+    depth: usize,
+    target: &'a ItemId,
+    main_producer: &'a Recipe,
+    flow_cyclic: Flow,
 }

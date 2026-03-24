@@ -1,3 +1,3 @@
 mod plan;
 
-pub use plan::{CyclicStep, NormalStep, Plan};
+pub use plan::{Plan, PlanNode};

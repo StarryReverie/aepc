@@ -1,238 +1,82 @@
-use getset::{CopyGetters, Getters};
+use std::collections::HashMap;
+
+use getset::Getters;
 
 use crate::domain::item::model::ItemId;
-use crate::domain::recipe::model::{RecipeId, Replica};
+use crate::domain::recipe::model::{Flow, Rate, RecipeId, Replica};
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum Plan {
-    Normal {
-        step: NormalStep,
-        dependencies: Vec<Plan>,
-    },
-    Cyclic {
-        step: CyclicStep,
-    },
+#[derive(Debug, Clone, PartialEq, Getters)]
+#[getset(get = "pub")]
+pub struct Plan {
+    goal: PlanNode,
+    common_intermediates: HashMap<ItemId, PlanNode>,
 }
 
 impl Plan {
-    pub fn normal(step: NormalStep, dependencies: Vec<Plan>) -> Self {
-        Self::Normal { step, dependencies }
-    }
-
-    pub fn cyclic(step: CyclicStep) -> Self {
-        Self::Cyclic { step }
-    }
-
-    pub fn goal(&self) -> &ItemId {
-        match self {
-            Self::Normal { step, .. } => step.goal(),
-            Self::Cyclic { step } => step.goal(),
-        }
-    }
-
-    pub fn replica_effective(&self) -> Replica {
-        match self {
-            Self::Normal { step, .. } => step.replica_effective(),
-            Self::Cyclic { step } => step.replica_effective(),
-        }
-    }
-
-    pub fn get_dependency(&self, dependency: &ItemId) -> Option<&Plan> {
-        match self {
-            Self::Normal { dependencies, .. } => {
-                dependencies.iter().find(|plan| plan.goal() == dependency)
-            }
-            Self::Cyclic { .. } => None,
-        }
-    }
-
-    pub fn amplify(self, multiplier: Replica) -> Self {
-        match self {
-            Self::Normal { step, dependencies } => Self::Normal {
-                step: NormalStep {
-                    replica_effective: Replica::new(
-                        step.replica_effective.value() * multiplier.value(),
-                    )
-                    .expect("the result should be positive"),
-                    replica_backward: step.replica_backward.map(|r| {
-                        Replica::new(r.value() * multiplier.value())
-                            .expect("the result should be positive")
-                    }),
-                    ..step
-                },
-                dependencies: dependencies
-                    .into_iter()
-                    .map(|plan| plan.amplify(multiplier))
-                    .collect(),
-            },
-            Self::Cyclic { step } => Self::Cyclic {
-                step: CyclicStep {
-                    replica_effective: Replica::new(
-                        step.replica_effective.value() * multiplier.value(),
-                    )
-                    .expect("the result should be positive"),
-                    ..step
-                },
-            },
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Getters, CopyGetters)]
-pub struct NormalStep {
-    #[getset(get = "pub")]
-    goal: ItemId,
-    #[getset(get = "pub")]
-    recipe: RecipeId,
-    #[getset(get_copy = "pub")]
-    replica_effective: Replica,
-    #[getset(get_copy = "pub")]
-    replica_backward: Option<Replica>,
-}
-
-impl NormalStep {
-    pub fn forward(goal: ItemId, recipe: RecipeId, replica_effective: Replica) -> Self {
+    pub fn new(goal: PlanNode, common_intermediates: HashMap<ItemId, PlanNode>) -> Self {
         Self {
             goal,
-            recipe,
-            replica_effective,
-            replica_backward: None,
+            common_intermediates,
         }
     }
+}
 
-    pub fn diverged(
-        goal: ItemId,
+#[derive(Debug, Clone, PartialEq)]
+pub enum PlanNode {
+    Normal {
+        target: ItemId,
         recipe: RecipeId,
-        replica_effective: Replica,
-        replica_backward: Replica,
-    ) -> Self {
-        Self {
-            goal,
-            recipe,
-            replica_effective,
-            replica_backward: Some(replica_backward),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Getters, CopyGetters)]
-pub struct CyclicStep {
-    #[getset(get = "pub")]
-    goal: ItemId,
-    #[getset(get = "pub")]
-    recipe: RecipeId,
-    #[getset(get_copy = "pub")]
-    replica_effective: Replica,
-    #[getset(get_copy = "pub")]
-    steps_ahead: u32,
-}
-
-impl CyclicStep {
-    pub fn new(
-        goal: ItemId,
+        rate: Rate,
+        replica_next: Replica,
+        replica_cyclic: Option<Replica>,
+        flow_extra: Flow,
+        dependencies: Vec<PlanNode>,
+    },
+    Partial {
+        target: ItemId,
         recipe: RecipeId,
-        replica_effective: Replica,
-        steps_ahead: u32,
-    ) -> Self {
-        Self {
-            goal,
-            recipe,
-            replica_effective,
-            steps_ahead,
-        }
-    }
+        flow_next: Flow,
+    },
+    Cyclic {
+        target: ItemId,
+        recipe: RecipeId,
+        flow_next: Flow,
+        from_steps_ahead: usize,
+    },
 }
 
-#[cfg(test)]
-mod tests {
-    use anyhow::Result as AnyhowResult;
-
-    use super::*;
-
-    #[test]
-    fn test_goal_normal() -> AnyhowResult<()> {
-        let goal = ItemId::new("i1")?;
-        let plan = Plan::normal(
-            NormalStep::forward(goal.clone(), RecipeId::new("r1")?, Replica::new(2.0)?),
-            vec![],
-        );
-        assert_eq!(plan.goal(), &goal);
-        Ok(())
+impl PlanNode {
+    pub fn target(&self) -> &ItemId {
+        match self {
+            Self::Normal { target, .. } => target,
+            Self::Partial { target, .. } => target,
+            Self::Cyclic { target, .. } => target,
+        }
     }
 
-    #[test]
-    fn test_goal_cyclic() -> AnyhowResult<()> {
-        let goal = ItemId::new("i1")?;
-        let plan = Plan::cyclic(CyclicStep::new(
-            goal.clone(),
-            RecipeId::new("r1")?,
-            Replica::new(2.0)?,
-            1,
-        ));
-        assert_eq!(plan.goal(), &goal);
-        Ok(())
+    pub fn recipe(&self) -> &RecipeId {
+        match self {
+            Self::Normal { recipe, .. } => recipe,
+            Self::Partial { recipe, .. } => recipe,
+            Self::Cyclic { recipe, .. } => recipe,
+        }
     }
 
-    #[test]
-    fn test_replica_effective_normal() -> AnyhowResult<()> {
-        let plan = Plan::normal(
-            NormalStep::forward(ItemId::new("i1")?, RecipeId::new("r1")?, Replica::new(2.5)?),
-            vec![],
-        );
-        assert_eq!(plan.replica_effective(), Replica::new(2.5)?);
-        Ok(())
+    pub fn flow_next(&self) -> Flow {
+        match self {
+            Self::Normal {
+                rate, replica_next, ..
+            } => *rate * *replica_next,
+            Self::Partial { flow_next, .. } => *flow_next,
+            Self::Cyclic { flow_next, .. } => *flow_next,
+        }
     }
 
-    #[test]
-    fn test_replica_effective_cyclic() -> AnyhowResult<()> {
-        let plan = Plan::cyclic(CyclicStep::new(
-            ItemId::new("i1")?,
-            RecipeId::new("r1")?,
-            Replica::new(3.7)?,
-            1,
-        ));
-        assert_eq!(plan.replica_effective(), Replica::new(3.7)?);
-        Ok(())
-    }
-
-    #[test]
-    fn test_get_dependency_normal() -> AnyhowResult<()> {
-        let goal1 = ItemId::new("i1")?;
-        let goal2 = ItemId::new("i2")?;
-        let goal3 = ItemId::new("i3")?;
-        let recipe = RecipeId::new("r1")?;
-        let replica = Replica::new(2.0)?;
-
-        let dep1 = Plan::normal(
-            NormalStep::forward(goal2.clone(), recipe.clone(), replica),
-            vec![],
-        );
-        let dep2 = Plan::normal(
-            NormalStep::forward(goal3.clone(), recipe.clone(), replica),
-            vec![],
-        );
-        let plan = Plan::normal(
-            NormalStep::forward(goal1, recipe, replica),
-            vec![dep1, dep2],
-        );
-
-        assert_eq!(plan.get_dependency(&goal2).unwrap().goal(), &goal2);
-        assert_eq!(plan.get_dependency(&goal3).unwrap().goal(), &goal3);
-        assert!(plan.get_dependency(&ItemId::new("i4")?).is_none());
-        Ok(())
-    }
-
-    #[test]
-    fn test_get_dependency_cyclic() -> AnyhowResult<()> {
-        let goal1 = ItemId::new("i1")?;
-        let goal2 = ItemId::new("i2")?;
-        let recipe = RecipeId::new("r1")?;
-        let replica = Replica::new(2.0)?;
-
-        let step = CyclicStep::new(goal1, recipe, replica, 1);
-        let plan = Plan::cyclic(step);
-
-        assert!(plan.get_dependency(&goal2).is_none());
-        Ok(())
+    pub fn get_dependency(&self, dependency: &ItemId) -> Option<&PlanNode> {
+        if let Self::Normal { dependencies, .. } = self {
+            dependencies.iter().find(|node| node.target() == dependency)
+        } else {
+            None
+        }
     }
 }
