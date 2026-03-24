@@ -1,12 +1,14 @@
-use getset::Getters;
+use getset::{CopyGetters, Getters};
 
 use super::{MachineId, MachineName, Power};
 
-#[derive(Debug, Clone, PartialEq, Getters)]
-#[getset(get = "pub")]
+#[derive(Debug, Clone, PartialEq, Getters, CopyGetters)]
 pub struct Machine {
+    #[getset(get = "pub")]
     id: MachineId,
+    #[getset(get = "pub")]
     name: MachineName,
+    #[getset(get_copy = "pub")]
     power: Power,
 }
 
