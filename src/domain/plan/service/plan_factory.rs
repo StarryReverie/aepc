@@ -440,3 +440,194 @@ struct BuildPlanTrace<'a> {
     main_producer: &'a Recipe,
     flow_cyclic: Flow,
 }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use anyhow::Result as AnyhowResult;
+
+    use crate::domain::recipe::model::{RecipeId, Replica, test_helper::make_recipe};
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test_no_recipe_found() -> AnyhowResult<()> {
+        #[rustfmt::skip]
+        let factory = {
+            let recipe = make_recipe("r1", "m1", 10.0, vec![], vec![("i1", 1.0)]);
+            make_factory_with_recipes(vec![recipe])?
+        };
+
+        let goal = ItemId::new("i2")?;
+        let flow_goal = Flow::new(6.0)?;
+        let res = factory.create_plan(&goal, flow_goal).await;
+
+        assert!(matches!(res, Err(CreatePlanError::NoRecipe { .. })));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_pipeline_with_shared_dependency() -> AnyhowResult<()> {
+        #[rustfmt::skip]
+        let factory = {
+            let r1 = make_recipe("r1", "m1", 10.0, vec![("i2", 10.0), ("i3", 5.0)], vec![("i1", 1.0)]);
+            let r2 = make_recipe("r2", "m2", 2.0, vec![("i4", 2.0)], vec![("i2", 1.0)]);
+            let r3 = make_recipe("r3", "m3", 2.0, vec![("i4", 1.0)], vec![("i3", 1.0)]);
+            let r4 = make_recipe("r4", "m4", 1.0, vec![], vec![("i4", 1.0)]);
+            make_factory_with_recipes(vec![r1, r2, r3, r4])?
+        };
+
+        let goal = ItemId::new("i1")?;
+        let flow_goal = Flow::new(6.0)?;
+        let plan = factory.create_plan(&goal, flow_goal).await?;
+
+        visit_node_normal(&plan, &["i1"], |variant| {
+            assert_eq!(variant.replica_next(), Replica::new(1.0).unwrap());
+            assert_eq!(variant.flow_next(), Flow::new(6.0).unwrap());
+        });
+        visit_node_normal(&plan, &["i1", "i2"], |variant| {
+            assert_eq!(variant.replica_next(), Replica::new(2.0).unwrap());
+            assert_eq!(variant.flow_next(), Flow::new(60.0).unwrap());
+        });
+        visit_node_partial(&plan, &["i1", "i2", "i4"], |variant| {
+            assert_eq!(variant.flow_next(), Flow::new(120.0).unwrap());
+        });
+        visit_node_normal(&plan, &["i1", "i3"], |variant| {
+            assert_eq!(variant.replica_next(), Replica::new(1.0).unwrap());
+            assert_eq!(variant.flow_next(), Flow::new(30.0).unwrap());
+        });
+        visit_node_partial(&plan, &["i1", "i3", "i4"], |variant| {
+            assert_eq!(variant.flow_next(), Flow::new(30.0).unwrap());
+        });
+        visit_node_normal(&plan, &["i4"], |variant| {
+            assert_eq!(variant.replica_next(), Replica::new(2.5).unwrap());
+            assert_eq!(variant.flow_next(), Flow::new(150.0).unwrap());
+        });
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_cyclic_pipeline() -> AnyhowResult<()> {
+        #[rustfmt::skip]
+        let factory = {
+            let r1 = make_recipe("r1", "m1", 1.0, vec![("i2", 1.0)], vec![("i1", 2.0)]);
+            let r2 = make_recipe("r2", "m2", 1.0, vec![("i1", 1.0)], vec![("i2", 1.0)]);
+            make_factory_with_recipes(vec![r1, r2])?
+        };
+
+        let goal = ItemId::new("i1")?;
+        let flow_goal = Flow::new(60.0)?;
+        let plan = factory.create_plan(&goal, flow_goal).await?;
+
+        visit_node_normal(&plan, &["i1"], |variant| {
+            assert_eq!(variant.replica_next(), Replica::new(0.5).unwrap());
+            assert_eq!(variant.replica_cyclic(), Some(Replica::new(0.5).unwrap()));
+            assert_eq!(variant.flow_next(), Flow::new(60.0).unwrap());
+        });
+        visit_node_normal(&plan, &["i1", "i2"], |variant| {
+            assert_eq!(variant.replica_next(), Replica::new(1.0).unwrap());
+            assert_eq!(variant.flow_next(), Flow::new(60.0).unwrap());
+        });
+        visit_node_cyclic(&plan, &["i1", "i2", "i1"], |variant| {
+            assert_eq!(variant.flow_next(), Flow::new(60.0).unwrap());
+            assert_eq!(variant.from_steps_ahead(), 2);
+        });
+
+        Ok(())
+    }
+
+    struct MockRecipeRepository {
+        recipes: HashMap<RecipeId, Recipe>,
+    }
+
+    impl MockRecipeRepository {
+        fn new() -> Self {
+            Self {
+                recipes: HashMap::new(),
+            }
+        }
+
+        fn add_recipe(&mut self, recipe: Recipe) {
+            let id = recipe.id().clone();
+            self.recipes.insert(id, recipe);
+        }
+    }
+
+    impl RecipeRepository for MockRecipeRepository {
+        async fn get(&self, _recipe_id: &RecipeId) -> AnyhowResult<Option<Recipe>> {
+            Ok(None)
+        }
+
+        async fn find_all_by_products_containing_target(
+            &self,
+            product_id: &ItemId,
+        ) -> AnyhowResult<Vec<Recipe>> {
+            let mut result = Vec::new();
+            for recipe in self.recipes.values() {
+                if recipe.products().iter().any(|(id, _)| id == product_id) {
+                    result.push(recipe.clone());
+                }
+            }
+            Ok(result)
+        }
+    }
+
+    fn make_factory_with_recipes(recipes: Vec<Recipe>) -> AnyhowResult<PlanFactoryImpl> {
+        let mut mock_repo = MockRecipeRepository::new();
+        for recipe in recipes {
+            mock_repo.add_recipe(recipe);
+        }
+        let mock_repo = DynRecipeRepository::new_arc(mock_repo);
+        Ok(PlanFactoryImpl::new(mock_repo))
+    }
+
+    fn visit_node<F>(plan: &Plan, path: &[&str], f: F)
+    where
+        F: FnOnce(&PlanNode),
+    {
+        let first = ItemId::new(path[0]).unwrap();
+        let mut current = if plan.goal().target() == &first {
+            plan.goal()
+        } else if let Some(node) = plan.common_intermediates().get(&first) {
+            node
+        } else {
+            panic!("starting node '{}' not found", path[0]);
+        };
+        for item_id in &path[1..] {
+            match current {
+                PlanNode::Normal(variant) => {
+                    current = variant
+                        .dependencies()
+                        .iter()
+                        .find(|dep| dep.target() == &ItemId::new(*item_id).unwrap())
+                        .unwrap()
+                }
+                PlanNode::Partial(_) | PlanNode::Cyclic(_) => panic!("invalid path"),
+            }
+        }
+        f(current)
+    }
+
+    fn visit_node_normal(plan: &Plan, path: &[&str], f: impl FnOnce(&PlanNodeNormalVariant)) {
+        visit_node(plan, path, |node| match node {
+            PlanNode::Normal(variant) => f(variant),
+            _ => panic!("expect `PlanNode::Normal`"),
+        })
+    }
+
+    fn visit_node_partial(plan: &Plan, path: &[&str], f: impl FnOnce(&PlanNodePartialVariant)) {
+        visit_node(plan, path, |node| match node {
+            PlanNode::Partial(variant) => f(variant),
+            _ => panic!("expect `PlanNode::Partial`"),
+        })
+    }
+
+    fn visit_node_cyclic(plan: &Plan, path: &[&str], f: impl FnOnce(&PlanNodeCyclicVariant)) {
+        visit_node(plan, path, |node| match node {
+            PlanNode::Cyclic(variant) => f(variant),
+            _ => panic!("expect `PlanNode::Cyclic`"),
+        })
+    }
+}
