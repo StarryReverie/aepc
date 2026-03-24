@@ -38,17 +38,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_search_items() {
-        let service = setup_search_items();
-
-        let items = service.search_items_impl("Item").await.unwrap();
-
-        assert_eq!(items.len(), 3);
-        assert_eq!(items[0], make_item("i1", "Item 1"));
-        assert_eq!(items[1], make_item("i2", "Item 2"));
-        assert_eq!(items[2], make_item("i3", "Item 3"));
-    }
-
-    fn setup_search_items() -> ItemQueryServiceImpl {
         fn i1() -> Item {
             make_item("i1", "Item 1")
         }
@@ -65,7 +54,13 @@ mod tests {
                     .answers(&|_, _| Ok(vec![i1(), i2(), i3()]));
             }),
         ));
+        let service = ItemQueryServiceImpl::new(item_repo);
 
-        ItemQueryServiceImpl::new(item_repo)
+        let items = service.search_items_impl("Item").await.unwrap();
+
+        assert_eq!(items.len(), 3);
+        assert_eq!(items[0], make_item("i1", "Item 1"));
+        assert_eq!(items[1], make_item("i2", "Item 2"));
+        assert_eq!(items[2], make_item("i3", "Item 3"));
     }
 }

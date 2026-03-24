@@ -1,7 +1,7 @@
 use ratatui::buffer::Buffer;
 use ratatui::crossterm::event::{Event, KeyCode};
 use ratatui::layout::Rect;
-use ratatui::text::{Line, Span};
+use ratatui::text::Line;
 use ratatui::widgets::{List, ListItem, StatefulWidget, Widget};
 use tokio::sync::mpsc::Sender;
 
@@ -81,56 +81,14 @@ impl Widget for &PlanTreeListComponent {
     }
 }
 
-fn format_plan_item(plan_detail: &PlanDetail, indent: String) -> Vec<Line<'static>> {
-    let mut line1_spans = vec![Span::raw(indent.clone())];
-    line1_spans.push(Span::raw(plan_detail.goal_name().to_string()));
-    line1_spans.push(Span::raw(" x "));
-
-    let flow_text = if let Some(backward) = plan_detail.flow_backward() {
-        format!(
-            "({} effective + {} backward)",
-            plan_detail.flow_effective(),
-            backward
-        )
-    } else {
-        format!("{}", plan_detail.flow_effective())
-    };
-    line1_spans.push(Span::raw(flow_text));
-
-    if let Some(steps) = plan_detail.cyclic_steps_ahead() {
-        line1_spans.push(Span::raw(format!(" (cyclic: {} step(s) ahead)", steps)));
-    }
-
-    let mut line2_spans = vec![Span::raw(indent)];
-    line2_spans.push(Span::raw("["));
-    line2_spans.push(Span::raw(plan_detail.machine_name().to_string()));
-    line2_spans.push(Span::raw("] x "));
-
-    let replica_text = if let Some(backward) = plan_detail.replica_backward() {
-        format!(
-            "({} effective + {} backward)",
-            plan_detail.replica_effective(),
-            backward
-        )
-    } else {
-        format!("{}", plan_detail.replica_effective())
-    };
-    line2_spans.push(Span::raw(replica_text));
-    line2_spans.push(Span::raw(format!(" ({})", plan_detail.machine_power())));
-
-    vec![Line::from(line1_spans), Line::from(line2_spans)]
+fn format_plan_item(_plan_detail: &PlanDetail, _indent: String) -> Vec<Line<'static>> {
+    todo!("rewrite format_plan_item to use new PlanDetail structure")
 }
 
 fn flatten_plan_detail_to_list_items(
-    plan_detail: &PlanDetail,
-    depth: usize,
-    items: &mut Vec<ListItem>,
+    _plan_detail: &PlanDetail,
+    _depth: usize,
+    _items: &mut Vec<ListItem>,
 ) {
-    let indent = "    ".repeat(depth) + " ";
-    let lines = format_plan_item(plan_detail, indent);
-    items.push(ListItem::new(lines));
-
-    for dep in plan_detail.dependencies() {
-        flatten_plan_detail_to_list_items(dep, depth + 1, items);
-    }
+    todo!("rewrite flatten_plan_detail_to_list_items to use new PlanDetail structure")
 }
