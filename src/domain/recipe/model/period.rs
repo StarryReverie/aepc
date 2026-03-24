@@ -2,18 +2,25 @@ use std::backtrace::Backtrace;
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
-use getset::CopyGetters;
 use snafu::prelude::*;
 
-#[derive(Debug, Clone, Copy, CopyGetters)]
-#[getset(get_copy = "pub")]
-pub struct Period {
-    value: f64,
+#[derive(Debug, Clone, Copy)]
+pub struct Period(f64);
+
+impl Period {
+    pub fn new(value: f64) -> Result<Self, NewPeriodError> {
+        ensure!(value > 0.0, ZeroOrNegativeSnafu);
+        Ok(Self(value))
+    }
+
+    pub fn value(&self) -> f64 {
+        self.0
+    }
 }
 
 impl PartialEq for Period {
     fn eq(&self, other: &Self) -> bool {
-        approx::abs_diff_eq!(self.value, other.value, epsilon = 1e-9)
+        approx::abs_diff_eq!(self.value(), other.value(), epsilon = 1e-9)
     }
 }
 
@@ -24,21 +31,14 @@ impl PartialOrd for Period {
         if self == other {
             Some(Ordering::Equal)
         } else {
-            self.value.partial_cmp(&other.value)
+            self.value().partial_cmp(&other.value())
         }
-    }
-}
-
-impl Period {
-    pub fn new(value: f64) -> Result<Self, NewPeriodError> {
-        ensure!(value > 0.0, ZeroOrNegativeSnafu);
-        Ok(Self { value })
     }
 }
 
 impl Display for Period {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        write!(f, "{} s", self.value)
+        write!(f, "{} s", self.value())
     }
 }
 

@@ -3,18 +3,29 @@ use std::cmp::Ordering;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::ops::Add;
 
-use getset::CopyGetters;
 use snafu::prelude::*;
 
-#[derive(Debug, Clone, Copy, CopyGetters)]
-#[getset(get_copy = "pub")]
-pub struct Replica {
-    value: f64,
+#[derive(Debug, Clone, Copy)]
+pub struct Replica(f64);
+
+impl Replica {
+    pub fn new(value: f64) -> Result<Self, NewReplicaError> {
+        ensure!(value > 0.0, ZeroOrNegativeSnafu);
+        Ok(Self(value))
+    }
+
+    pub fn one() -> Self {
+        Self::new(1.0).expect("1.0 should be positive")
+    }
+
+    pub fn value(&self) -> f64 {
+        self.0
+    }
 }
 
 impl PartialEq for Replica {
     fn eq(&self, other: &Self) -> bool {
-        approx::abs_diff_eq!(self.value, other.value, epsilon = 1e-9)
+        approx::abs_diff_eq!(self.value(), other.value(), epsilon = 1e-9)
     }
 }
 
@@ -25,25 +36,14 @@ impl PartialOrd for Replica {
         if self == other {
             Some(Ordering::Equal)
         } else {
-            self.value.partial_cmp(&other.value)
+            self.value().partial_cmp(&other.value())
         }
-    }
-}
-
-impl Replica {
-    pub fn new(value: f64) -> Result<Self, NewReplicaError> {
-        ensure!(value > 0.0, ZeroOrNegativeSnafu);
-        Ok(Self { value })
-    }
-
-    pub fn one() -> Self {
-        Self::new(1.0).expect("1.0 should be positive")
     }
 }
 
 impl Display for Replica {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        write!(f, "{} times", self.value)
+        write!(f, "{} times", self.value())
     }
 }
 
@@ -51,7 +51,7 @@ impl Add for Replica {
     type Output = Replica;
 
     fn add(self, other: Self) -> Self::Output {
-        Replica::new(self.value + other.value)
+        Replica::new(self.value() + other.value())
             .expect("the result should be positive because both operands are positive")
     }
 }

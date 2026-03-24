@@ -1,13 +1,9 @@
 use std::backtrace::Backtrace;
 
-use getset::Getters;
 use snafu::prelude::*;
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Getters)]
-#[getset(get = "pub")]
-pub struct MachineId {
-    value: String,
-}
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct MachineId(String);
 
 impl MachineId {
     pub fn new<S: Into<String>>(value: S) -> Result<Self, NewMachineIdError> {
@@ -19,9 +15,11 @@ impl MachineId {
                 .all(|ch| ch.is_ascii_alphanumeric() || ch == '-' || ch == '_'),
             InvalidCharacterSnafu,
         );
-        Ok(Self {
-            value: format!("machine#{}", value),
-        })
+        Ok(Self(format!("machine#{}", value)))
+    }
+
+    pub fn value(&self) -> &str {
+        &self.0
     }
 }
 

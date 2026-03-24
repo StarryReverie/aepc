@@ -3,20 +3,31 @@ use std::cmp::Ordering;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::ops::{Add, Div, Mul};
 
-use getset::CopyGetters;
 use snafu::prelude::*;
 
 use super::{Period, Quantity, Rate, Replica};
 
-#[derive(Debug, Clone, Copy, CopyGetters)]
-#[getset(get_copy = "pub")]
-pub struct Flow {
-    value: f64,
+#[derive(Debug, Clone, Copy)]
+pub struct Flow(f64);
+
+impl Flow {
+    pub fn zero() -> Self {
+        Flow::new(0.0).expect("0 should be non-negative")
+    }
+
+    pub fn new(value: f64) -> Result<Self, NewFlowError> {
+        ensure!(value >= 0.0, NegativeSnafu);
+        Ok(Self(value))
+    }
+
+    pub fn value(&self) -> f64 {
+        self.0
+    }
 }
 
 impl PartialEq for Flow {
     fn eq(&self, other: &Self) -> bool {
-        approx::abs_diff_eq!(self.value, other.value, epsilon = 1e-9)
+        approx::abs_diff_eq!(self.value(), other.value(), epsilon = 1e-9)
     }
 }
 
@@ -27,25 +38,14 @@ impl PartialOrd for Flow {
         if self == other {
             Some(Ordering::Equal)
         } else {
-            self.value.partial_cmp(&other.value)
+            self.value().partial_cmp(&other.value())
         }
-    }
-}
-
-impl Flow {
-    pub fn zero() -> Self {
-        Flow::new(0.0).expect("0 should be non-negative")
-    }
-
-    pub fn new(value: f64) -> Result<Self, NewFlowError> {
-        ensure!(value >= 0.0, NegativeSnafu);
-        Ok(Self { value })
     }
 }
 
 impl Display for Flow {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        write!(f, "{} items/min", self.value)
+        write!(f, "{} items/min", self.value())
     }
 }
 
@@ -53,7 +53,7 @@ impl Add for Flow {
     type Output = Flow;
 
     fn add(self, other: Self) -> Self::Output {
-        Flow::new(self.value + other.value)
+        Flow::new(self.value() + other.value())
             .expect("the result should be non-negative because both operands are non-negative")
     }
 }
@@ -62,7 +62,7 @@ impl Div<Replica> for Flow {
     type Output = Rate;
 
     fn div(self, other: Replica) -> Self::Output {
-        Rate::new(self.value / other.value())
+        Rate::new(self.value() / other.value())
             .expect("the result should be non-negative because both operands are non-negative")
     }
 }
@@ -71,7 +71,7 @@ impl Div<Rate> for Flow {
     type Output = Replica;
 
     fn div(self, other: Rate) -> Self::Output {
-        Replica::new(self.value / other.value())
+        Replica::new(self.value() / other.value())
             .expect("the result should be non-negative because both operands are non-negative")
     }
 }
@@ -81,7 +81,7 @@ impl Mul<Period> for Flow {
 
     fn mul(self, other: Period) -> Self::Output {
         const SECONDS_PER_MINUTE: f64 = 60.0;
-        Quantity::new(self.value * other.value() / SECONDS_PER_MINUTE)
+        Quantity::new(self.value() * other.value() / SECONDS_PER_MINUTE)
             .expect("the result should be non-negative because both operands are non-negative")
     }
 }

@@ -3,20 +3,27 @@ use std::cmp::Ordering;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::ops::{Add, Div};
 
-use getset::CopyGetters;
 use snafu::prelude::*;
 
 use super::{Flow, Period};
 
-#[derive(Debug, Clone, Copy, CopyGetters)]
-#[getset(get_copy = "pub")]
-pub struct Quantity {
-    value: f64,
+#[derive(Debug, Clone, Copy)]
+pub struct Quantity(f64);
+
+impl Quantity {
+    pub fn new(value: f64) -> Result<Self, NewQuantityError> {
+        ensure!(value >= 0.0, NegativeSnafu);
+        Ok(Self(value))
+    }
+
+    pub fn value(&self) -> f64 {
+        self.0
+    }
 }
 
 impl PartialEq for Quantity {
     fn eq(&self, other: &Self) -> bool {
-        approx::abs_diff_eq!(self.value, other.value, epsilon = 1e-9)
+        approx::abs_diff_eq!(self.value(), other.value(), epsilon = 1e-9)
     }
 }
 
@@ -27,21 +34,14 @@ impl PartialOrd for Quantity {
         if self == other {
             Some(Ordering::Equal)
         } else {
-            self.value.partial_cmp(&other.value)
+            self.value().partial_cmp(&other.value())
         }
-    }
-}
-
-impl Quantity {
-    pub fn new(value: f64) -> Result<Self, NewQuantityError> {
-        ensure!(value >= 0.0, NegativeSnafu);
-        Ok(Self { value })
     }
 }
 
 impl Display for Quantity {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        write!(f, "{} items", self.value)
+        write!(f, "{} items", self.value())
     }
 }
 
@@ -49,7 +49,7 @@ impl Add for Quantity {
     type Output = Quantity;
 
     fn add(self, other: Self) -> Self::Output {
-        Quantity::new(self.value + other.value)
+        Quantity::new(self.value() + other.value())
             .expect("the result should be non-negative because both operands are non-negative")
     }
 }
@@ -59,7 +59,7 @@ impl Div<Period> for Quantity {
 
     fn div(self, other: Period) -> Self::Output {
         const SECONDS_PER_MINUTE: f64 = 60.0;
-        Flow::new(self.value / other.value() * SECONDS_PER_MINUTE)
+        Flow::new(self.value() / other.value() * SECONDS_PER_MINUTE)
             .expect("the result should be non-negative because both operands are non-negative")
     }
 }
@@ -69,7 +69,7 @@ impl Div<Flow> for Quantity {
 
     fn div(self, other: Flow) -> Self::Output {
         const SECONDS_PER_MINUTE: f64 = 60.0;
-        Period::new(self.value / other.value() * SECONDS_PER_MINUTE)
+        Period::new(self.value() / other.value() * SECONDS_PER_MINUTE)
             .expect("the result should be non-negative because both operands are non-negative")
     }
 }

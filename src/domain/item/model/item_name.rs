@@ -1,26 +1,26 @@
 use std::backtrace::Backtrace;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
-use getset::Getters;
 use snafu::prelude::*;
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Getters)]
-#[getset(get = "pub")]
-pub struct ItemName {
-    value: String,
-}
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ItemName(String);
 
 impl ItemName {
     pub fn new<S: Into<String>>(value: S) -> Result<Self, NewItemNameError> {
         let value = value.into();
         ensure!(!value.is_empty(), EmptySnafu);
-        Ok(Self { value })
+        Ok(Self(value))
+    }
+
+    pub fn value(&self) -> &str {
+        &self.0
     }
 }
 
 impl Display for ItemName {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        write!(f, "{}", self.value)
+        write!(f, "{}", self.value())
     }
 }
 

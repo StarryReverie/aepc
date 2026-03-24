@@ -1,20 +1,26 @@
 use std::backtrace::Backtrace;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
-use getset::Getters;
 use snafu::prelude::*;
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Getters)]
-#[getset(get = "pub")]
-pub struct MachineName {
-    value: String,
-}
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct MachineName(String);
 
 impl MachineName {
     pub fn new<S: Into<String>>(value: S) -> Result<Self, NewMachineNameError> {
         let value = value.into();
         ensure!(!value.is_empty(), EmptySnafu);
-        Ok(Self { value })
+        Ok(Self(value))
+    }
+
+    pub fn value(&self) -> &str {
+        &self.0
+    }
+}
+
+impl Display for MachineName {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        write!(f, "{}", self.value())
     }
 }
 
@@ -23,12 +29,6 @@ impl MachineName {
 pub enum NewMachineNameError {
     #[snafu(display("machine name should not be empty"))]
     Empty { backtrace: Backtrace },
-}
-
-impl Display for MachineName {
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        write!(f, "{}", self.value)
-    }
 }
 
 #[cfg(test)]

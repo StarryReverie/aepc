@@ -1,13 +1,9 @@
 use std::backtrace::Backtrace;
 
-use getset::Getters;
 use snafu::prelude::*;
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Getters)]
-#[getset(get = "pub")]
-pub struct RecipeId {
-    value: String,
-}
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct RecipeId(String);
 
 impl RecipeId {
     pub fn new<S: Into<String>>(value: S) -> Result<Self, NewRecipeIdError> {
@@ -19,9 +15,11 @@ impl RecipeId {
                 .all(|ch| ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' || ch == '+'),
             InvalidCharacterSnafu,
         );
-        Ok(Self {
-            value: format!("recipe#{}", value),
-        })
+        Ok(Self(format!("recipe#{}", value)))
+    }
+
+    pub fn value(&self) -> &str {
+        &self.0
     }
 }
 
