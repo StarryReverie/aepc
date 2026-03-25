@@ -9,7 +9,10 @@ pub struct Power(f64);
 
 impl Power {
     pub fn new(value: f64) -> Result<Self, NewPowerError> {
-        ensure!(value >= 0.0, NegativeSnafu);
+        ensure!(
+            value > 0.0 || approx::relative_eq!(value, 0.0, epsilon = 1e-9),
+            NegativeSnafu,
+        );
         Ok(Self(value))
     }
 
@@ -20,7 +23,7 @@ impl Power {
 
 impl PartialEq for Power {
     fn eq(&self, other: &Self) -> bool {
-        approx::abs_diff_eq!(self.value(), other.value(), epsilon = 1e-9)
+        approx::relative_eq!(self.value(), other.value(), epsilon = 1e-9)
     }
 }
 

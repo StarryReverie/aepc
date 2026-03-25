@@ -9,7 +9,10 @@ pub struct Period(f64);
 
 impl Period {
     pub fn new(value: f64) -> Result<Self, NewPeriodError> {
-        ensure!(value > 0.0, ZeroOrNegativeSnafu);
+        ensure!(
+            value > 0.0 && approx::relative_ne!(value, 0.0, epsilon = 1e-9),
+            ZeroOrNegativeSnafu,
+        );
         Ok(Self(value))
     }
 
@@ -20,7 +23,7 @@ impl Period {
 
 impl PartialEq for Period {
     fn eq(&self, other: &Self) -> bool {
-        approx::abs_diff_eq!(self.value(), other.value(), epsilon = 1e-9)
+        approx::relative_eq!(self.value(), other.value(), epsilon = 1e-9)
     }
 }
 

@@ -12,7 +12,10 @@ pub struct Rate(f64);
 
 impl Rate {
     pub fn new(value: f64) -> Result<Self, NewRateError> {
-        ensure!(value >= 0.0, NegativeSnafu);
+        ensure!(
+            value > 0.0 || approx::relative_eq!(value, 0.0, epsilon = 1e-9),
+            NegativeSnafu,
+        );
         Ok(Self(value))
     }
 
@@ -23,7 +26,7 @@ impl Rate {
 
 impl PartialEq for Rate {
     fn eq(&self, other: &Self) -> bool {
-        approx::abs_diff_eq!(self.value(), other.value(), epsilon = 1e-9)
+        approx::relative_eq!(self.value(), other.value(), epsilon = 1e-9)
     }
 }
 
