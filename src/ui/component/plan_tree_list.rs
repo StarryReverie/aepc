@@ -5,7 +5,7 @@ use ratatui::text::Line;
 use ratatui::widgets::{List, ListItem, StatefulWidget, Widget};
 use tokio::sync::mpsc::Sender;
 
-use crate::application::query::plan::PlanDetail;
+use crate::application::query::plan::{PlanDetail, PlanDetailNode};
 use crate::infrastructure::util::component::Component;
 use crate::infrastructure::util::state::State;
 use crate::ui::state::{PlanTabFocus, PlanTabState, PlanTreeListAction, PlanTreeListState};
@@ -81,14 +81,40 @@ impl Widget for &PlanTreeListComponent {
     }
 }
 
-fn format_plan_item(_plan_detail: &PlanDetail, _indent: String) -> Vec<Line<'static>> {
-    todo!("rewrite format_plan_item to use new PlanDetail structure")
+fn flatten_plan_detail_to_list_items(
+    plan_detail: &PlanDetail,
+    _depth: usize,
+    items: &mut Vec<ListItem>,
+) {
+    flatten_node_to_list_items(plan_detail.goal(), 0, items);
+
+    for intermediate in plan_detail.common_intermediates() {
+        flatten_node_to_list_items(intermediate, 0, items);
+    }
 }
 
-fn flatten_plan_detail_to_list_items(
-    _plan_detail: &PlanDetail,
-    _depth: usize,
-    _items: &mut Vec<ListItem>,
-) {
-    todo!("rewrite flatten_plan_detail_to_list_items to use new PlanDetail structure")
+fn flatten_node_to_list_items(node: &PlanDetailNode, depth: usize, items: &mut Vec<ListItem>) {
+    let indent = "    ".repeat(depth);
+    let line = format_plan_item(node, indent);
+    items.push(ListItem::new(line));
+
+    for dep in node.dependencies() {
+        flatten_node_to_list_items(dep, depth + 1, items);
+    }
+}
+
+fn format_plan_item(node: &PlanDetailNode, indent: String) -> Line<'static> {
+    let power_suffix = match node.machine_power() {
+        Some(power) => format!(" [{power}]"),
+        None => String::new(),
+    };
+
+    Line::from(format!(
+        "{}{} @ {} [{}]{}",
+        indent,
+        node.target_name(),
+        node.machine_name(),
+        node.flow_all(),
+        power_suffix
+    ))
 }
