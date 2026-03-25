@@ -11,7 +11,7 @@ use snafu::prelude::*;
 
 use crate::domain::item::model::ItemId;
 use crate::domain::plan::model::{
-    Plan, PlanNode, PlanNodeCyclicVariant, PlanNodeNormalVariant, PlanNodePartialVariant,
+    CyclicPlanItemNode, NormalPlanItemNode, PartialPlanItemNode, Plan, PlanItemNode,
 };
 use crate::domain::recipe::model::{Flow, Recipe, RecipeId, Replica};
 use crate::domain::recipe::outbound::{DynRecipeRepository, RecipeRepository};
@@ -290,9 +290,9 @@ impl PlanFactoryImpl {
         &self,
         context: &BuildPlanContext<'a>,
         trace: &mut Vec<BuildPlanTrace<'a>>,
-        common_intermediates: &mut HashMap<ItemId, PlanNode>,
+        common_intermediates: &mut HashMap<ItemId, PlanItemNode>,
         target: &'a ItemId,
-    ) -> PlanNode {
+    ) -> PlanItemNode {
         let BuildPlanContext {
             recipes,
             item_main_producers,
@@ -318,8 +318,8 @@ impl PlanFactoryImpl {
                 if let Some(frame) = trace.iter_mut().rfind(|frame| frame.target == material) {
                     frame.flow_cyclic = frame.flow_cyclic + flow_material;
                     let prev_depth = frame.depth;
-                    PlanNode::Cyclic(
-                        PlanNodeCyclicVariant::builder()
+                    PlanItemNode::Cyclic(
+                        CyclicPlanItemNode::builder()
                             .target(material.clone())
                             .recipe(frame.main_producer.id().clone())
                             .flow_next(flow_material)
@@ -328,8 +328,8 @@ impl PlanFactoryImpl {
                             .unwrap(),
                     )
                 } else if let Some(node) = common_intermediates.get(material) {
-                    PlanNode::Partial(
-                        PlanNodePartialVariant::builder()
+                    PlanItemNode::Partial(
+                        PartialPlanItemNode::builder()
                             .target(material.clone())
                             .recipe(node.recipe().clone())
                             .flow_next(flow_material)
@@ -340,8 +340,8 @@ impl PlanFactoryImpl {
                     let dependency =
                         self.build_plan_recursive(context, trace, common_intermediates, material);
                     if dependency.flow_next() > flow_material {
-                        let partial = PlanNode::Partial(
-                            PlanNodePartialVariant::builder()
+                        let partial = PlanItemNode::Partial(
+                            PartialPlanItemNode::builder()
                                 .target(material.clone())
                                 .recipe(dependency.recipe().clone())
                                 .flow_next(flow_material)
@@ -375,8 +375,8 @@ impl PlanFactoryImpl {
             (replica_all, None)
         };
 
-        let node = PlanNode::Normal(
-            PlanNodeNormalVariant::builder()
+        let node = PlanItemNode::Normal(
+            NormalPlanItemNode::builder()
                 .target(target.clone())
                 .recipe(recipe.id().clone())
                 .rate(rate)
@@ -585,7 +585,7 @@ mod tests {
 
     fn visit_node<F>(plan: &Plan, path: &[&str], f: F)
     where
-        F: FnOnce(&PlanNode),
+        F: FnOnce(&PlanItemNode),
     {
         let first = ItemId::new(path[0]).unwrap();
         let mut current = if plan.goal().target() == &first {
@@ -595,38 +595,31 @@ mod tests {
         } else {
             panic!("starting node '{}' not found", path[0]);
         };
-        for item_id in &path[1..] {
-            match current {
-                PlanNode::Normal(variant) => {
-                    current = variant
-                        .dependencies()
-                        .iter()
-                        .find(|dep| dep.target() == &ItemId::new(*item_id).unwrap())
-                        .unwrap()
-                }
-                PlanNode::Partial(_) | PlanNode::Cyclic(_) => panic!("invalid path"),
-            }
+        for item in &path[1..] {
+            current = current
+                .get_dependency(&ItemId::new(*item).unwrap())
+                .expect("invalid path");
         }
         f(current)
     }
 
-    fn visit_node_normal(plan: &Plan, path: &[&str], f: impl FnOnce(&PlanNodeNormalVariant)) {
+    fn visit_node_normal(plan: &Plan, path: &[&str], f: impl FnOnce(&NormalPlanItemNode)) {
         visit_node(plan, path, |node| match node {
-            PlanNode::Normal(variant) => f(variant),
+            PlanItemNode::Normal(variant) => f(variant),
             _ => panic!("expect `PlanNode::Normal`"),
         })
     }
 
-    fn visit_node_partial(plan: &Plan, path: &[&str], f: impl FnOnce(&PlanNodePartialVariant)) {
+    fn visit_node_partial(plan: &Plan, path: &[&str], f: impl FnOnce(&PartialPlanItemNode)) {
         visit_node(plan, path, |node| match node {
-            PlanNode::Partial(variant) => f(variant),
+            PlanItemNode::Partial(variant) => f(variant),
             _ => panic!("expect `PlanNode::Partial`"),
         })
     }
 
-    fn visit_node_cyclic(plan: &Plan, path: &[&str], f: impl FnOnce(&PlanNodeCyclicVariant)) {
+    fn visit_node_cyclic(plan: &Plan, path: &[&str], f: impl FnOnce(&CyclicPlanItemNode)) {
         visit_node(plan, path, |node| match node {
-            PlanNode::Cyclic(variant) => f(variant),
+            PlanItemNode::Cyclic(variant) => f(variant),
             _ => panic!("expect `PlanNode::Cyclic`"),
         })
     }

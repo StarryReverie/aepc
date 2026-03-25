@@ -10,7 +10,7 @@ use crate::domain::item::model::{ItemId, ItemName};
 use crate::domain::item::outbound::ItemRepository;
 use crate::domain::machine::model::{MachineId, MachineName, Power};
 use crate::domain::machine::outbound::MachineRepository;
-use crate::domain::plan::model::{Plan, PlanNode};
+use crate::domain::plan::model::{Plan, PlanItemNode};
 use crate::domain::plan::service::{CreatePlanError, PlanFactory};
 use crate::domain::recipe::model::{Flow, Rate, Recipe, RecipeId, Replica};
 use crate::domain::recipe::outbound::RecipeRepository;
@@ -116,7 +116,7 @@ impl PlanQueryServiceImpl {
 
     async fn convert_node_to_detail(
         &self,
-        node: &PlanNode,
+        node: &PlanItemNode,
         plan: &Plan,
     ) -> Result<PlanDetailNode, QueryPlanError> {
         let target_id = node.target().clone();
@@ -161,7 +161,7 @@ impl PlanQueryServiceImpl {
         let flow_next = node.flow_next();
 
         match node {
-            PlanNode::Normal(variant) => {
+            PlanItemNode::Normal(variant) => {
                 let mut dependencies = Vec::new();
                 for dep in variant.dependencies() {
                     dependencies.push(Box::pin(self.convert_node_to_detail(dep, plan)).await?);
@@ -196,7 +196,7 @@ impl PlanQueryServiceImpl {
                     dependencies,
                 })
             }
-            PlanNode::Partial(_) => Ok(PlanDetailNode {
+            PlanItemNode::Partial(_) => Ok(PlanDetailNode {
                 target_id,
                 target_name,
                 recipe_id,
@@ -212,7 +212,7 @@ impl PlanQueryServiceImpl {
                 from_steps_ahead: None,
                 dependencies: vec![],
             }),
-            PlanNode::Cyclic(variant) => Ok(PlanDetailNode {
+            PlanItemNode::Cyclic(variant) => Ok(PlanDetailNode {
                 target_id,
                 target_name,
                 recipe_id,
@@ -244,7 +244,7 @@ mod tests {
     use crate::domain::machine::outbound::{
         DynMachineRepository, test_helper::MachineRepositoryMock,
     };
-    use crate::domain::plan::model::{Plan, PlanNode, PlanNodeNormalVariant};
+    use crate::domain::plan::model::{Plan, PlanItemNode, NormalPlanItemNode};
     use crate::domain::plan::service::{DynPlanFactory, test_helper::PlanFactoryMock};
     use crate::domain::recipe::model::{Flow, Recipe, RecipeId, Replica, test_helper::make_recipe};
     use crate::domain::recipe::outbound::{DynRecipeRepository, test_helper::RecipeRepositoryMock};
@@ -263,8 +263,8 @@ mod tests {
             make_recipe("r1", "m1", 60.0, vec![], vec![("i1", 1.0)])
         }
         fn plan() -> Plan {
-            let goal_node = PlanNode::Normal(
-                PlanNodeNormalVariant::builder()
+            let goal_node = PlanItemNode::Normal(
+                NormalPlanItemNode::builder()
                     .target(ItemId::new("i1").unwrap())
                     .recipe(RecipeId::new("r1").unwrap())
                     .rate(Recipe::get_product_rate(&recipe1(), item1().id()).unwrap())
