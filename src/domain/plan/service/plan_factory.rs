@@ -382,7 +382,6 @@ impl PlanFactoryImpl {
                 .rate(rate)
                 .replica_next(replica_next)
                 .replica_cyclic(replica_cyclic)
-                .flow_extra(flow_extra)
                 .dependencies(dependencies)
                 .build()
                 .unwrap(),

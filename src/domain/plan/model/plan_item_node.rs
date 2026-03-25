@@ -60,8 +60,6 @@ pub struct NormalPlanItemNode {
     replica_next: Replica,
     #[getset(get_copy = "pub")]
     replica_cyclic: Option<Replica>,
-    #[getset(get_copy = "pub")]
-    flow_extra: Flow,
     #[getset(get = "pub")]
     dependencies: Vec<PlanItemNode>,
 }

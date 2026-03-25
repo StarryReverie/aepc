@@ -1,4 +1,3 @@
-#![expect(unused)]
 use std::backtrace::Backtrace;
 
 use anyhow::Error as AnyhowError;
@@ -12,7 +11,7 @@ use crate::domain::machine::model::{MachineId, MachineName, Power};
 use crate::domain::machine::outbound::MachineRepository;
 use crate::domain::plan::model::{Plan, PlanItemNode};
 use crate::domain::plan::service::{CreatePlanError, PlanFactory};
-use crate::domain::recipe::model::{Flow, Rate, Recipe, RecipeId, Replica};
+use crate::domain::recipe::model::{Flow, Rate, RecipeId, Replica};
 use crate::domain::recipe::outbound::RecipeRepository;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -68,8 +67,6 @@ pub struct PlanDetailNode {
     flow_all: Flow,
     #[getset(get_copy = "pub")]
     flow_next: Flow,
-    #[getset(get_copy = "pub")]
-    flow_extra: Option<Flow>,
     #[getset(get_copy = "pub")]
     rate: Option<Rate>,
     #[getset(get_copy = "pub")]
@@ -170,7 +167,7 @@ impl PlanQueryServiceImpl {
 
                 let replica_cyclic = variant.replica_cyclic();
                 let flow_cyclic = replica_cyclic.map_or(Flow::zero(), |r| variant.rate() * r);
-                let flow_all = flow_next + flow_cyclic + variant.flow_extra();
+                let flow_all = flow_next + flow_cyclic;
 
                 let replica_all = match replica_cyclic {
                     Some(cyclic) => variant.replica_next() + cyclic,
@@ -188,7 +185,6 @@ impl PlanQueryServiceImpl {
                     machine_power,
                     flow_all,
                     flow_next,
-                    flow_extra: Some(variant.flow_extra()),
                     rate: Some(variant.rate()),
                     replica_next: Some(variant.replica_next()),
                     replica_cyclic,
@@ -205,7 +201,6 @@ impl PlanQueryServiceImpl {
                 machine_power: None,
                 flow_all: flow_next,
                 flow_next,
-                flow_extra: None,
                 rate: None,
                 replica_next: None,
                 replica_cyclic: None,
@@ -221,7 +216,6 @@ impl PlanQueryServiceImpl {
                 machine_power: None,
                 flow_all: flow_next,
                 flow_next,
-                flow_extra: None,
                 rate: None,
                 replica_next: None,
                 replica_cyclic: None,
@@ -240,11 +234,11 @@ mod tests {
 
     use crate::domain::item::model::{Item, ItemId, test_helper::make_item};
     use crate::domain::item::outbound::{DynItemRepository, test_helper::ItemRepositoryMock};
-    use crate::domain::machine::model::{Machine, MachineId, test_helper::make_machine};
+    use crate::domain::machine::model::{Machine, test_helper::make_machine};
     use crate::domain::machine::outbound::{
         DynMachineRepository, test_helper::MachineRepositoryMock,
     };
-    use crate::domain::plan::model::{Plan, PlanItemNode, NormalPlanItemNode};
+    use crate::domain::plan::model::{NormalPlanItemNode, Plan, PlanItemNode};
     use crate::domain::plan::service::{DynPlanFactory, test_helper::PlanFactoryMock};
     use crate::domain::recipe::model::{Flow, Recipe, RecipeId, Replica, test_helper::make_recipe};
     use crate::domain::recipe::outbound::{DynRecipeRepository, test_helper::RecipeRepositoryMock};
@@ -270,7 +264,6 @@ mod tests {
                     .rate(Recipe::get_product_rate(&recipe1(), item1().id()).unwrap())
                     .replica_next(Replica::new(1.0).unwrap())
                     .replica_cyclic(None)
-                    .flow_extra(Flow::zero())
                     .dependencies(vec![])
                     .build()
                     .unwrap(),
@@ -319,7 +312,6 @@ mod tests {
                 * Replica::new(1.0).unwrap()
         );
         assert_eq!(goal.flow_all(), Flow::new(1.0).unwrap());
-        assert_eq!(goal.flow_extra(), Some(Flow::zero()));
         assert_eq!(goal.machine_power(), Some(machine1().power()));
         assert_eq!(
             goal.rate(),
