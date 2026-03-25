@@ -20,14 +20,6 @@ impl PlanItemNode {
         }
     }
 
-    pub fn recipe(&self) -> &RecipeId {
-        match self {
-            Self::Normal(variant) => variant.recipe(),
-            Self::Partial(variant) => variant.recipe(),
-            Self::Cyclic(variant) => variant.recipe(),
-        }
-    }
-
     pub fn flow_next(&self) -> Flow {
         match self {
             Self::Normal(variant) => variant.flow_next(),
@@ -78,8 +70,6 @@ impl NormalPlanItemNode {
 pub struct PartialPlanItemNode {
     #[getset(get = "pub")]
     target: ItemId,
-    #[getset(get = "pub")]
-    recipe: RecipeId,
     #[getset(get_copy = "pub")]
     flow_next: Flow,
 }
@@ -94,8 +84,6 @@ impl PartialPlanItemNode {
 pub struct CyclicPlanItemNode {
     #[getset(get = "pub")]
     target: ItemId,
-    #[getset(get = "pub")]
-    recipe: RecipeId,
     #[getset(get_copy = "pub")]
     flow_next: Flow,
     #[getset(get_copy = "pub")]

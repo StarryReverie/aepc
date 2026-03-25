@@ -321,17 +321,15 @@ impl PlanFactoryImpl {
                     PlanItemNode::Cyclic(
                         CyclicPlanItemNode::builder()
                             .target(material.clone())
-                            .recipe(frame.main_producer.id().clone())
                             .flow_next(flow_material)
                             .from_steps_ahead(trace.last().unwrap().depth - prev_depth + 1)
                             .build()
                             .unwrap(),
                     )
-                } else if let Some(node) = common_intermediates.get(material) {
+                } else if let Some(_) = common_intermediates.get(material) {
                     PlanItemNode::Partial(
                         PartialPlanItemNode::builder()
                             .target(material.clone())
-                            .recipe(node.recipe().clone())
                             .flow_next(flow_material)
                             .build()
                             .unwrap(),
@@ -343,7 +341,6 @@ impl PlanFactoryImpl {
                         let partial = PlanItemNode::Partial(
                             PartialPlanItemNode::builder()
                                 .target(material.clone())
-                                .recipe(dependency.recipe().clone())
                                 .flow_next(flow_material)
                                 .build()
                                 .unwrap(),

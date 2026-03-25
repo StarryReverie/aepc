@@ -5,13 +5,15 @@ use getset::{CopyGetters, Getters};
 use snafu::prelude::*;
 
 use crate::application::query::plan::PlanQueryServiceImpl;
-use crate::domain::item::model::{ItemId, ItemName};
+use crate::domain::item::model::{Item, ItemId, ItemName};
 use crate::domain::item::outbound::ItemRepository;
-use crate::domain::machine::model::{MachineId, MachineName, Power};
+use crate::domain::machine::model::{Machine, MachineId, MachineName, Power};
 use crate::domain::machine::outbound::MachineRepository;
-use crate::domain::plan::model::{Plan, PlanItemNode};
+use crate::domain::plan::model::{
+    CyclicPlanItemNode, NormalPlanItemNode, PartialPlanItemNode, Plan, PlanItemNode,
+};
 use crate::domain::plan::service::{CreatePlanError, PlanFactory};
-use crate::domain::recipe::model::{Flow, Rate, RecipeId, Replica};
+use crate::domain::recipe::model::{Flow, Recipe, RecipeId, Replica};
 use crate::domain::recipe::outbound::RecipeRepository;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -49,12 +51,46 @@ pub struct PlanDetail {
     common_intermediates: Vec<PlanDetailNode>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PlanDetailNode {
+    Combined {
+        target: PlanTargetDetail,
+        recipe: PlanRecipeDetail,
+        children: Vec<PlanDetailNode>,
+    },
+    Target {
+        target: PlanTargetDetail,
+        children: Vec<PlanDetailNode>,
+    },
+}
+
+impl PlanDetailNode {
+    pub fn children(&self) -> &[PlanDetailNode] {
+        match self {
+            Self::Combined { children, .. } => &children,
+            Self::Target { children, .. } => &children,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Getters, CopyGetters)]
-pub struct PlanDetailNode {
+pub struct PlanTargetDetail {
     #[getset(get = "pub")]
     target_id: ItemId,
     #[getset(get = "pub")]
     target_name: ItemName,
+    #[getset(get_copy = "pub")]
+    flow_all: Flow,
+    #[getset(get_copy = "pub")]
+    flow_next: Flow,
+    #[getset(get_copy = "pub")]
+    flow_cyclic: Option<Flow>,
+    #[getset(get_copy = "pub")]
+    from_steps_ahead: Option<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Getters, CopyGetters)]
+pub struct PlanRecipeDetail {
     #[getset(get = "pub")]
     recipe_id: RecipeId,
     #[getset(get = "pub")]
@@ -64,19 +100,7 @@ pub struct PlanDetailNode {
     #[getset(get_copy = "pub")]
     machine_power: Option<Power>,
     #[getset(get_copy = "pub")]
-    flow_all: Flow,
-    #[getset(get_copy = "pub")]
-    flow_next: Flow,
-    #[getset(get_copy = "pub")]
-    rate: Option<Rate>,
-    #[getset(get_copy = "pub")]
-    replica_next: Option<Replica>,
-    #[getset(get_copy = "pub")]
-    replica_cyclic: Option<Replica>,
-    #[getset(get_copy = "pub")]
-    from_steps_ahead: Option<usize>,
-    #[getset(get = "pub")]
-    dependencies: Vec<PlanDetailNode>,
+    replica: Replica,
 }
 
 impl PlanQueryServiceImpl {
@@ -90,18 +114,18 @@ impl PlanQueryServiceImpl {
             .await
             .context(PlanSnafu)?;
 
-        let plan_detail = self.convert_plan_to_detail(&plan).await?;
+        let plan_detail = self.convert_plan(&plan).await?;
 
         Ok(QueryPlanResponse { plan: plan_detail })
     }
 
-    async fn convert_plan_to_detail(&self, plan: &Plan) -> Result<PlanDetail, QueryPlanError> {
+    async fn convert_plan(&self, plan: &Plan) -> Result<PlanDetail, QueryPlanError> {
         let goal_node = plan.goal();
-        let goal = self.convert_node_to_detail(goal_node, plan).await?;
+        let goal = self.convert_item_node(goal_node).await?;
 
         let mut common_intermediates = Vec::new();
         for node in plan.common_intermediates().values() {
-            let detail_node = self.convert_node_to_detail(node, plan).await?;
+            let detail_node = self.convert_item_node(node).await?;
             common_intermediates.push(detail_node);
         }
 
@@ -111,118 +135,127 @@ impl PlanQueryServiceImpl {
         })
     }
 
-    async fn convert_node_to_detail(
+    async fn convert_item_node(
         &self,
         node: &PlanItemNode,
-        plan: &Plan,
     ) -> Result<PlanDetailNode, QueryPlanError> {
-        let target_id = node.target().clone();
-        let target = self
-            .item_repository
-            .get(&target_id)
-            .await
-            .context(InfrastructureSnafu {
-                message: format!("failed to fetch item {:?}", target_id),
-            })?
-            .context(NotFoundSnafu {
-                entity: format!("item {:?}", target_id),
-            })?;
-        let target_name = target.name().clone();
+        match node {
+            PlanItemNode::Normal(node) => self.convert_normal_item_node(node).await,
+            PlanItemNode::Partial(node) => self.convert_partial_item_node(node).await,
+            PlanItemNode::Cyclic(node) => self.convert_cyclic_item_node(node).await,
+        }
+    }
 
-        let recipe_id = node.recipe().clone();
-        let recipe = self
-            .recipe_repository
-            .get(&recipe_id)
-            .await
-            .context(InfrastructureSnafu {
-                message: format!("failed to fetch recipe {:?}", recipe_id),
-            })?
-            .context(NotFoundSnafu {
-                entity: format!("recipe {:?}", recipe_id),
-            })?;
+    async fn convert_normal_item_node(
+        &self,
+        node: &NormalPlanItemNode,
+    ) -> Result<PlanDetailNode, QueryPlanError> {
+        let target = self.get_item_entity(node.target()).await?;
+        let recipe = self.get_recipe_entity(node.recipe()).await?;
+        let machine = self.get_machine_entity(recipe.machine()).await?;
 
-        let machine_id = recipe.machine().clone();
-        let machine = self
-            .machine_repository
-            .get(&machine_id)
-            .await
-            .context(InfrastructureSnafu {
-                message: format!("failed to fetch machine {:?}", machine_id),
-            })?
-            .context(NotFoundSnafu {
-                entity: format!("machine {:?}", machine_id),
-            })?;
-        let machine_name = machine.name().clone();
-        let machine_base_power = machine.power();
+        let mut dependencies = Vec::new();
+        for dep in node.dependencies() {
+            dependencies.push(Box::pin(self.convert_item_node(dep)).await?);
+        }
 
         let flow_next = node.flow_next();
+        let flow_cyclic = node.replica_cyclic().map(|r| node.rate() * r);
+        let flow_all = flow_next + flow_cyclic.unwrap_or(Flow::zero());
 
-        match node {
-            PlanItemNode::Normal(variant) => {
-                let mut dependencies = Vec::new();
-                for dep in variant.dependencies() {
-                    dependencies.push(Box::pin(self.convert_node_to_detail(dep, plan)).await?);
-                }
-                dependencies.sort_by(|a, b| a.target_name().cmp(b.target_name()));
+        let replica = match node.replica_cyclic() {
+            Some(cyclic) => node.replica_next() + cyclic,
+            None => node.replica_next(),
+        };
+        let machine_power = Power::new(machine.power().value() * replica.value()).unwrap();
 
-                let replica_cyclic = variant.replica_cyclic();
-                let flow_cyclic = replica_cyclic.map_or(Flow::zero(), |r| variant.rate() * r);
-                let flow_all = flow_next + flow_cyclic;
-
-                let replica_all = match replica_cyclic {
-                    Some(cyclic) => variant.replica_next() + cyclic,
-                    None => variant.replica_next(),
-                };
-                let machine_power =
-                    Some(Power::new(machine_base_power.value() * replica_all.value()).unwrap());
-
-                Ok(PlanDetailNode {
-                    target_id,
-                    target_name,
-                    recipe_id,
-                    machine_id,
-                    machine_name,
-                    machine_power,
-                    flow_all,
-                    flow_next,
-                    rate: Some(variant.rate()),
-                    replica_next: Some(variant.replica_next()),
-                    replica_cyclic,
-                    from_steps_ahead: None,
-                    dependencies,
-                })
-            }
-            PlanItemNode::Partial(_) => Ok(PlanDetailNode {
-                target_id,
-                target_name,
-                recipe_id,
-                machine_id,
-                machine_name,
-                machine_power: None,
-                flow_all: flow_next,
+        Ok(PlanDetailNode::Combined {
+            target: PlanTargetDetail {
+                target_id: target.id().clone(),
+                target_name: target.name().clone(),
+                flow_all,
                 flow_next,
-                rate: None,
-                replica_next: None,
-                replica_cyclic: None,
+                flow_cyclic,
                 from_steps_ahead: None,
-                dependencies: vec![],
-            }),
-            PlanItemNode::Cyclic(variant) => Ok(PlanDetailNode {
-                target_id,
-                target_name,
-                recipe_id,
-                machine_id,
-                machine_name,
-                machine_power: None,
-                flow_all: flow_next,
-                flow_next,
-                rate: None,
-                replica_next: None,
-                replica_cyclic: None,
-                from_steps_ahead: Some(variant.from_steps_ahead()),
-                dependencies: vec![],
-            }),
-        }
+            },
+            recipe: PlanRecipeDetail {
+                recipe_id: recipe.id().clone(),
+                machine_id: machine.id().clone(),
+                machine_name: machine.name().clone(),
+                machine_power: Some(machine_power),
+                replica,
+            },
+            children: dependencies,
+        })
+    }
+
+    async fn convert_partial_item_node(
+        &self,
+        node: &PartialPlanItemNode,
+    ) -> Result<PlanDetailNode, QueryPlanError> {
+        let target = self.get_item_entity(node.target()).await?;
+        Ok(PlanDetailNode::Target {
+            target: PlanTargetDetail {
+                target_id: target.id().clone(),
+                target_name: target.name().clone(),
+                flow_all: node.flow_next(),
+                flow_next: node.flow_next(),
+                flow_cyclic: None,
+                from_steps_ahead: None,
+            },
+            children: Vec::new(),
+        })
+    }
+
+    async fn convert_cyclic_item_node(
+        &self,
+        node: &CyclicPlanItemNode,
+    ) -> Result<PlanDetailNode, QueryPlanError> {
+        let target = self.get_item_entity(node.target()).await?;
+        Ok(PlanDetailNode::Target {
+            target: PlanTargetDetail {
+                target_id: target.id().clone(),
+                target_name: target.name().clone(),
+                flow_all: node.flow_next(),
+                flow_next: node.flow_next(),
+                flow_cyclic: None,
+                from_steps_ahead: Some(node.from_steps_ahead()),
+            },
+            children: Vec::new(),
+        })
+    }
+
+    async fn get_item_entity(&self, id: &ItemId) -> Result<Item, QueryPlanError> {
+        let item = (self.item_repository.get(id).await)
+            .context(InfrastructureSnafu {
+                message: format!("failed to fetch item {:?}", id),
+            })?
+            .context(NotFoundSnafu {
+                entity: format!("item {:?}", id),
+            })?;
+        Ok(item)
+    }
+
+    async fn get_recipe_entity(&self, id: &RecipeId) -> Result<Recipe, QueryPlanError> {
+        let recipe = (self.recipe_repository.get(id).await)
+            .context(InfrastructureSnafu {
+                message: format!("failed to fetch recipe {:?}", id),
+            })?
+            .context(NotFoundSnafu {
+                entity: format!("recipe {:?}", id),
+            })?;
+        Ok(recipe)
+    }
+
+    async fn get_machine_entity(&self, id: &MachineId) -> Result<Machine, QueryPlanError> {
+        let machine = (self.machine_repository.get(id).await)
+            .context(InfrastructureSnafu {
+                message: format!("failed to fetch machine {:?}", id),
+            })?
+            .context(NotFoundSnafu {
+                entity: format!("machine {:?}", id),
+            })?;
+        Ok(machine)
     }
 }
 
@@ -300,25 +333,21 @@ mod tests {
         let response = service.query_plan_impl(request).await.unwrap();
         let plan_detail = response.plan;
 
-        let goal = plan_detail.goal();
-        assert_eq!(goal.target_id(), item1().id());
-        assert_eq!(goal.target_name(), item1().name());
-        assert_eq!(goal.recipe_id(), recipe1().id());
-        assert_eq!(goal.machine_id(), machine1().id());
-        assert_eq!(goal.machine_name(), machine1().name());
+        let PlanDetailNode::Combined { target, recipe, .. } = plan_detail.goal() else {
+            unreachable!();
+        };
+        assert_eq!(target.target_id(), item1().id());
+        assert_eq!(target.target_name(), item1().name());
+        assert_eq!(target.flow_all(), Flow::new(1.0).unwrap());
         assert_eq!(
-            goal.flow_next(),
-            Recipe::get_product_rate(&recipe1(), item1().id()).unwrap()
-                * Replica::new(1.0).unwrap()
+            target.flow_next(),
+            Recipe::get_product_rate(&recipe1(), item1().id()).unwrap() * Replica::one(),
         );
-        assert_eq!(goal.flow_all(), Flow::new(1.0).unwrap());
-        assert_eq!(goal.machine_power(), Some(machine1().power()));
-        assert_eq!(
-            goal.rate(),
-            Some(Recipe::get_product_rate(&recipe1(), item1().id()).unwrap())
-        );
-        assert_eq!(goal.replica_next(), Some(Replica::new(1.0).unwrap()));
-        assert_eq!(goal.replica_cyclic(), None);
-        assert_eq!(goal.from_steps_ahead(), None);
+        assert_eq!(target.from_steps_ahead(), None);
+
+        assert_eq!(recipe.recipe_id(), recipe1().id());
+        assert_eq!(recipe.machine_id(), machine1().id());
+        assert_eq!(recipe.machine_name(), machine1().name());
+        assert_eq!(recipe.machine_power(), Some(machine1().power()));
     }
 }

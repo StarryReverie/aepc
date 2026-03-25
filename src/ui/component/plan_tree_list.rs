@@ -94,27 +94,33 @@ fn flatten_plan_detail_to_list_items(
 }
 
 fn flatten_node_to_list_items(node: &PlanDetailNode, depth: usize, items: &mut Vec<ListItem>) {
-    let indent = "    ".repeat(depth);
-    let line = format_plan_item(node, indent);
+    let indent = "    ".repeat(depth) + " ";
+    let line = format_plan_detail_node(node, indent);
     items.push(ListItem::new(line));
 
-    for dep in node.dependencies() {
+    for dep in node.children() {
         flatten_node_to_list_items(dep, depth + 1, items);
     }
 }
 
-fn format_plan_item(node: &PlanDetailNode, indent: String) -> Line<'static> {
-    let power_suffix = match node.machine_power() {
-        Some(power) => format!(" [{power}]"),
-        None => String::new(),
-    };
-
-    Line::from(format!(
-        "{}{} @ {} [{}]{}",
-        indent,
-        node.target_name(),
-        node.machine_name(),
-        node.flow_all(),
-        power_suffix
-    ))
+fn format_plan_detail_node(node: &PlanDetailNode, indent: String) -> Line<'static> {
+    match node {
+        PlanDetailNode::Combined { target, recipe, .. } => {
+            let power_str = recipe
+                .machine_power()
+                .map_or(String::new(), |power| format!(" [{power}]"));
+            Line::from(format!(
+                "{indent}{} @ {} [{}]{}",
+                target.target_name(),
+                recipe.machine_name(),
+                target.flow_all(),
+                power_str
+            ))
+        }
+        PlanDetailNode::Target { target, .. } => Line::from(format!(
+            "{indent}{} [{}]",
+            target.target_name(),
+            target.flow_all(),
+        )),
+    }
 }
