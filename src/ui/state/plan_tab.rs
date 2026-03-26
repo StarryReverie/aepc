@@ -1,9 +1,10 @@
 use getset::{CopyGetters, Getters};
-use tokio::sync::mpsc::{self, Receiver};
+use tokio::sync::mpsc::{self, Receiver, Sender};
 
 use crate::domain::item::model::Item;
 use crate::domain::recipe::model::Flow;
 use crate::infrastructure::util::state::{State, StateManager, StateManagerContext, StateSource};
+use crate::ui::state::AppAction;
 
 #[derive(Debug, Clone, PartialEq, Eq, Getters, CopyGetters)]
 pub struct PlanTabState {
@@ -18,15 +19,16 @@ pub struct PlanTabState {
 impl Default for PlanTabState {
     fn default() -> Self {
         Self {
-            focus: PlanTabFocus::GoalFlowInput,
+            focus: PlanTabFocus::default(),
             expected_goal_item: None,
             expected_goal_flow: None,
         }
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum PlanTabFocus {
+    #[default]
     GoalFlowInput,
     GoalItemSearchInput,
     GoalItemSearchList,
@@ -44,13 +46,18 @@ pub enum PlanTabAction {
 pub struct PlanTabStateManager {
     source: StateSource<PlanTabState>,
     actions: Receiver<PlanTabAction>,
+    app_requester: Sender<AppAction>,
 }
 
 impl PlanTabStateManager {
-    pub fn context() -> StateManagerContext<Self> {
+    pub fn context(app_requester: Sender<AppAction>) -> StateManagerContext<Self> {
         let (requester, actions) = mpsc::channel(32);
         let (source, _) = StateSource::new(PlanTabState::default());
-        let manager = Self { source, actions };
+        let manager = Self {
+            source,
+            actions,
+            app_requester,
+        };
         StateManagerContext::new(manager, requester)
     }
 
@@ -86,27 +93,39 @@ impl PlanTabStateManager {
     }
 
     fn handle_action_switch_focus_to_next(&mut self) {
+        let new_focus = match self.source.get().focus {
+            PlanTabFocus::GoalFlowInput => PlanTabFocus::GoalItemSearchInput,
+            PlanTabFocus::GoalItemSearchInput => PlanTabFocus::GoalItemSearchList,
+            PlanTabFocus::GoalItemSearchList => PlanTabFocus::PlanTreeList,
+            PlanTabFocus::PlanTreeList => PlanTabFocus::GoalFlowInput,
+        };
         self.source.modify(|state| PlanTabState {
-            focus: match state.focus {
-                PlanTabFocus::GoalFlowInput => PlanTabFocus::GoalItemSearchInput,
-                PlanTabFocus::GoalItemSearchInput => PlanTabFocus::GoalItemSearchList,
-                PlanTabFocus::GoalItemSearchList => PlanTabFocus::PlanTreeList,
-                PlanTabFocus::PlanTreeList => PlanTabFocus::GoalFlowInput,
-            },
+            focus: new_focus,
             ..state.clone()
         });
+        let _ =
+            self.app_requester
+                .try_send(AppAction::SetFocus(crate::ui::state::AppFocus::PlanTab(
+                    new_focus,
+                )));
     }
 
     fn handle_action_switch_focus_to_previous(&mut self) {
+        let new_focus = match self.source.get().focus {
+            PlanTabFocus::GoalFlowInput => PlanTabFocus::PlanTreeList,
+            PlanTabFocus::GoalItemSearchInput => PlanTabFocus::GoalFlowInput,
+            PlanTabFocus::GoalItemSearchList => PlanTabFocus::GoalItemSearchInput,
+            PlanTabFocus::PlanTreeList => PlanTabFocus::GoalItemSearchList,
+        };
         self.source.modify(|state| PlanTabState {
-            focus: match state.focus {
-                PlanTabFocus::GoalFlowInput => PlanTabFocus::PlanTreeList,
-                PlanTabFocus::GoalItemSearchInput => PlanTabFocus::GoalFlowInput,
-                PlanTabFocus::GoalItemSearchList => PlanTabFocus::GoalItemSearchInput,
-                PlanTabFocus::PlanTreeList => PlanTabFocus::GoalItemSearchList,
-            },
+            focus: new_focus,
             ..state.clone()
         });
+        let _ =
+            self.app_requester
+                .try_send(AppAction::SetFocus(crate::ui::state::AppFocus::PlanTab(
+                    new_focus,
+                )));
     }
 }
 

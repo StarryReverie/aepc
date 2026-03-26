@@ -2,6 +2,7 @@ use getset::{CopyGetters, Getters};
 use tokio::sync::mpsc::{self, Receiver};
 
 use crate::infrastructure::util::state::{State, StateManager, StateManagerContext, StateSource};
+use crate::ui::state::PlanTabFocus;
 
 const INIT_STATUS_TEXT: &str =
     "Welcome to Aepc! Open issues/PRs on https://github.com/StarryReverie/aepc";
@@ -14,6 +15,8 @@ pub struct AppState {
     status_text: String,
     #[getset(get_copy = "pub")]
     status_level: StatusLevel,
+    #[getset(get_copy = "pub")]
+    focus: AppFocus,
 }
 
 impl Default for AppState {
@@ -22,7 +25,19 @@ impl Default for AppState {
             running: true,
             status_text: String::from(INIT_STATUS_TEXT),
             status_level: StatusLevel::Info,
+            focus: AppFocus::default(),
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AppFocus {
+    PlanTab(PlanTabFocus),
+}
+
+impl Default for AppFocus {
+    fn default() -> Self {
+        Self::PlanTab(PlanTabFocus::default())
     }
 }
 
@@ -36,6 +51,7 @@ pub enum StatusLevel {
 pub enum AppAction {
     Quit,
     SetStatus { text: String, level: StatusLevel },
+    SetFocus(AppFocus),
 }
 
 pub struct AppStateManager {
@@ -59,6 +75,9 @@ impl AppStateManager {
             AppAction::SetStatus { text, level } => {
                 self.handle_action_set_status(text, level);
             }
+            AppAction::SetFocus(focus) => {
+                self.handle_action_set_focus(focus);
+            }
         }
     }
 
@@ -73,6 +92,13 @@ impl AppStateManager {
         self.source.modify(|state| AppState {
             status_text: text,
             status_level: level,
+            ..state.clone()
+        });
+    }
+
+    fn handle_action_set_focus(&mut self, focus: AppFocus) {
+        self.source.modify(|state| AppState {
+            focus,
             ..state.clone()
         });
     }

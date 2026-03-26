@@ -70,7 +70,7 @@ fn setup() -> (AppComponent, State<AppState>) {
 
     let app_context = AppStateManager::context();
     let status_bar_context = StatusBarStateManager::context(app_context.state());
-    let plan_tab_context = PlanTabStateManager::context();
+    let plan_tab_context = PlanTabStateManager::context(app_context.requester());
     let goal_item_search_context = GoalItemSearchStateManager::context();
     let goal_item_search_list_context = GoalItemSearchListStateManager::context(
         goal_item_search_context.state(),
@@ -119,6 +119,7 @@ fn setup() -> (AppComponent, State<AppState>) {
             plan_tab_context.state(),
         ),
         StatusBarComponent::new(status_bar_context.state(), app_context.state()),
+        KeybindingBarComponent::new(app_context.state()),
         app_context.requester(),
     );
 
