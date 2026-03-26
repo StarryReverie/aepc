@@ -73,7 +73,7 @@ impl Widget for &PlanTreeListComponent {
 
         let list_items = plan_detail.as_ref().map_or(vec![], |plan| {
             let mut items = vec![];
-            flatten_plan_detail_to_list_items(plan, 0, &mut items);
+            flatten_plan_detail(plan, &mut items);
             items
         });
 
@@ -89,40 +89,65 @@ impl Widget for &PlanTreeListComponent {
     }
 }
 
-fn flatten_plan_detail_to_list_items(
-    plan_detail: &PlanDetail,
-    _depth: usize,
-    items: &mut Vec<ListItem<'static>>,
-) {
-    flatten_node_to_list_items(plan_detail.goal(), 0, items);
+fn flatten_plan_detail(plan_detail: &PlanDetail, items: &mut Vec<ListItem<'static>>) {
+    let goal_node = plan_detail.goal();
+    let intermediates = plan_detail.common_intermediates();
+    let recipes = plan_detail.common_recipes();
 
-    for intermediate in plan_detail.common_intermediates() {
-        flatten_node_to_list_items(intermediate, 0, items);
+    let total_top_nodes = 1 + intermediates.len() + recipes.len();
+    let mut is_last_sibling = Vec::new();
+
+    is_last_sibling.push(0 == total_top_nodes - 1);
+    flatten_node(goal_node, items, &mut is_last_sibling);
+    is_last_sibling.pop();
+
+    for (index, node) in intermediates.iter().enumerate() {
+        is_last_sibling.push(1 + index == total_top_nodes - 1);
+        flatten_node(node, items, &mut is_last_sibling);
+        is_last_sibling.pop();
     }
 
-    for recipe in plan_detail.common_recipes() {
-        flatten_node_to_list_items(recipe, 0, items);
+    for (index, node) in recipes.iter().enumerate() {
+        is_last_sibling.push(1 + intermediates.len() + index == total_top_nodes - 1);
+        flatten_node(node, items, &mut is_last_sibling);
+        is_last_sibling.pop();
     }
 }
 
-fn flatten_node_to_list_items(
+fn flatten_node(
     node: &PlanDetailNode,
-    depth: usize,
     items: &mut Vec<ListItem<'static>>,
+    is_last_sibling: &mut Vec<bool>,
 ) {
-    let indent = "    ".repeat(depth) + " ";
-    let line = format_plan_detail_node(node, &indent);
-    items.push(ListItem::new(line.clone()));
+    let prefix = build_prefix(is_last_sibling);
+    let line = format_node(node, prefix);
+    items.push(ListItem::new(line));
 
-    for dep in node.children() {
-        flatten_node_to_list_items(dep, depth + 1, items);
+    for (child_index, child) in node.children().iter().enumerate() {
+        is_last_sibling.push(child_index == node.children().len() - 1);
+        flatten_node(child, items, is_last_sibling);
+        is_last_sibling.pop();
     }
 }
 
-fn format_plan_detail_node(node: &PlanDetailNode, indent: &str) -> Line<'static> {
+fn build_prefix(is_last_sibling: &[bool]) -> String {
+    let mut indent = String::new();
+    for &is_last in is_last_sibling.iter().take(is_last_sibling.len() - 1) {
+        indent.push_str(if is_last { "    " } else { "│   " });
+    }
+    let is_last_current = *is_last_sibling.last().unwrap();
+    if is_last_current {
+        indent.push_str("└── ");
+    } else {
+        indent.push_str("├── ");
+    }
+    indent
+}
+
+fn format_node(node: &PlanDetailNode, prefix: String) -> Line<'static> {
     match node {
         PlanDetailNode::Combined { target, recipe, .. } => to_line(
-            indent,
+            prefix,
             vec![
                 Span::raw(target.target_name().to_string()),
                 Span::raw("@"),
@@ -133,7 +158,7 @@ fn format_plan_detail_node(node: &PlanDetailNode, indent: &str) -> Line<'static>
             ],
         ),
         PlanDetailNode::Target { target, .. } => to_line(
-            indent,
+            prefix,
             vec![
                 Span::raw(target.target_name().to_string()),
                 Span::raw("@"),
@@ -146,7 +171,7 @@ fn format_plan_detail_node(node: &PlanDetailNode, indent: &str) -> Line<'static>
             product_names,
             ..
         } => to_line(
-            indent,
+            prefix,
             vec![
                 span_machine_name(recipe.machine_name().to_string()),
                 Span::raw("=>"),
@@ -164,8 +189,8 @@ fn format_plan_detail_node(node: &PlanDetailNode, indent: &str) -> Line<'static>
     }
 }
 
-fn to_line(indent: &str, spans: Vec<Span<'static>>) -> Line<'static> {
-    let mut res = vec![Span::raw(indent.to_string())];
+fn to_line(prefix: String, spans: Vec<Span<'static>>) -> Line<'static> {
+    let mut res = vec![Span::raw(prefix)];
     let mut first = true;
     for span in spans {
         if first {
