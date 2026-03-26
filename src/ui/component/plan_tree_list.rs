@@ -91,6 +91,10 @@ fn flatten_plan_detail_to_list_items(
     for intermediate in plan_detail.common_intermediates() {
         flatten_node_to_list_items(intermediate, 0, items);
     }
+
+    for recipe in plan_detail.common_recipes() {
+        flatten_node_to_list_items(recipe, 0, items);
+    }
 }
 
 fn flatten_node_to_list_items(node: &PlanDetailNode, depth: usize, items: &mut Vec<ListItem>) {
@@ -122,5 +126,16 @@ fn format_plan_detail_node(node: &PlanDetailNode, indent: String) -> Line<'stati
             target.target_name(),
             target.flow_all(),
         )),
+        PlanDetailNode::Recipe { recipe, .. } => {
+            let power_str = recipe
+                .machine_power()
+                .map_or(String::new(), |power| format!(" [{power}]"));
+            Line::from(format!(
+                "{indent}<{}> [{}]{}",
+                recipe.machine_name(),
+                recipe.replica(),
+                power_str
+            ))
+        }
     }
 }

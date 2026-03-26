@@ -10,8 +10,9 @@ use crate::domain::item::outbound::ItemRepository;
 use crate::domain::machine::model::{Machine, MachineId, MachineName, Power};
 use crate::domain::machine::outbound::MachineRepository;
 use crate::domain::plan::model::{
-    AggregatedPlanItemNode, CyclicPlanItemNode, NormalPlanItemNode, PartialPlanItemNode, Plan,
-    PlanItemNode,
+    AggregatedPlanItemNode, CyclicPlanItemNode, CyclicPlanRecipeNode, NormalPlanItemNode,
+    NormalPlanRecipeNode, PartialPlanItemNode, PartialPlanRecipeNode, Plan, PlanItemNode,
+    PlanRecipeNode,
 };
 use crate::domain::plan::service::{CreatePlanError, PlanFactory};
 use crate::domain::recipe::model::{Flow, Recipe, RecipeId, Replica};
@@ -50,6 +51,7 @@ pub enum QueryPlanError {
 pub struct PlanDetail {
     goal: PlanDetailNode,
     common_intermediates: Vec<PlanDetailNode>,
+    common_recipes: Vec<PlanDetailNode>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -63,6 +65,10 @@ pub enum PlanDetailNode {
         target: PlanTargetDetail,
         children: Vec<PlanDetailNode>,
     },
+    Recipe {
+        recipe: PlanRecipeDetail,
+        children: Vec<PlanDetailNode>,
+    },
 }
 
 impl PlanDetailNode {
@@ -70,6 +76,7 @@ impl PlanDetailNode {
         match self {
             Self::Combined { children, .. } => &children,
             Self::Target { children, .. } => &children,
+            Self::Recipe { children, .. } => &children,
         }
     }
 }
@@ -130,9 +137,16 @@ impl PlanQueryServiceImpl {
             common_intermediates.push(detail_node);
         }
 
+        let mut common_recipes = Vec::new();
+        for node in plan.common_recipes().values() {
+            let detail_node = self.convert_recipe_node(node).await?;
+            common_recipes.push(detail_node);
+        }
+
         Ok(PlanDetail {
             goal,
             common_intermediates,
+            common_recipes,
         })
     }
 
@@ -161,8 +175,6 @@ impl PlanQueryServiceImpl {
             dependencies.push(Box::pin(self.convert_item_node(dep)).await?);
         }
 
-        let flow_all = node.flow_next() + node.flow_cyclic();
-
         let replica = node.replica();
         let machine_power = Power::new(machine.power().value() * replica.value()).unwrap();
 
@@ -170,7 +182,7 @@ impl PlanQueryServiceImpl {
             target: PlanTargetDetail {
                 target_id: target.id().clone(),
                 target_name: target.name().clone(),
-                flow_all,
+                flow_all: node.flow_next() + node.flow_cyclic(),
                 flow_next: node.flow_next(),
                 flow_cyclic: node.flow_cyclic(),
                 from_steps_ahead: None,
@@ -188,9 +200,27 @@ impl PlanQueryServiceImpl {
 
     async fn convert_aggregated_item_node(
         &self,
-        _node: &AggregatedPlanItemNode,
+        node: &AggregatedPlanItemNode,
     ) -> Result<PlanDetailNode, QueryPlanError> {
-        todo!("convert `AggregatedPlanItemNode` to `PlanDetailNode`")
+        let target = self.get_item_entity(node.target()).await?;
+
+        let mut children = Vec::new();
+        for recipe in node.recipes() {
+            let recipe_detail_node = self.convert_recipe_node(recipe).await?;
+            children.push(recipe_detail_node);
+        }
+
+        Ok(PlanDetailNode::Target {
+            target: PlanTargetDetail {
+                target_id: target.id().clone(),
+                target_name: target.name().clone(),
+                flow_all: node.flow_next() + node.flow_cyclic(),
+                flow_next: node.flow_next(),
+                flow_cyclic: node.flow_cyclic(),
+                from_steps_ahead: None,
+            },
+            children,
+        })
     }
 
     async fn convert_partial_item_node(
@@ -224,6 +254,88 @@ impl PlanQueryServiceImpl {
                 flow_next: node.flow_next(),
                 flow_cyclic: Flow::zero(),
                 from_steps_ahead: Some(node.from_steps_ahead()),
+            },
+            children: Vec::new(),
+        })
+    }
+
+    async fn convert_recipe_node(
+        &self,
+        node: &PlanRecipeNode,
+    ) -> Result<PlanDetailNode, QueryPlanError> {
+        match node {
+            PlanRecipeNode::Normal(node) => self.convert_normal_recipe_node(node).await,
+            PlanRecipeNode::Partial(node) => self.convert_partial_recipe_node(node).await,
+            PlanRecipeNode::Cyclic(node) => self.convert_cyclic_recipe_node(node).await,
+        }
+    }
+
+    async fn convert_normal_recipe_node(
+        &self,
+        node: &NormalPlanRecipeNode,
+    ) -> Result<PlanDetailNode, QueryPlanError> {
+        let recipe = self.get_recipe_entity(node.recipe()).await?;
+        let machine = self.get_machine_entity(recipe.machine()).await?;
+
+        let mut children = Vec::new();
+        for material in node.materials() {
+            children.push(Box::pin(self.convert_item_node(material)).await?);
+        }
+
+        let replica = node.replica();
+        let machine_power = Power::new(machine.power().value() * replica.value()).unwrap();
+
+        Ok(PlanDetailNode::Recipe {
+            recipe: PlanRecipeDetail {
+                recipe_id: recipe.id().clone(),
+                machine_id: machine.id().clone(),
+                machine_name: machine.name().clone(),
+                machine_power: Some(machine_power),
+                replica,
+            },
+            children,
+        })
+    }
+
+    async fn convert_partial_recipe_node(
+        &self,
+        node: &PartialPlanRecipeNode,
+    ) -> Result<PlanDetailNode, QueryPlanError> {
+        let recipe = self.get_recipe_entity(node.recipe()).await?;
+        let machine = self.get_machine_entity(recipe.machine()).await?;
+
+        let replica = node.replica();
+        let machine_power = Power::new(machine.power().value() * replica.value()).unwrap();
+
+        Ok(PlanDetailNode::Recipe {
+            recipe: PlanRecipeDetail {
+                recipe_id: recipe.id().clone(),
+                machine_id: machine.id().clone(),
+                machine_name: machine.name().clone(),
+                machine_power: Some(machine_power),
+                replica,
+            },
+            children: Vec::new(),
+        })
+    }
+
+    async fn convert_cyclic_recipe_node(
+        &self,
+        node: &CyclicPlanRecipeNode,
+    ) -> Result<PlanDetailNode, QueryPlanError> {
+        let recipe = self.get_recipe_entity(node.recipe()).await?;
+        let machine = self.get_machine_entity(recipe.machine()).await?;
+
+        let replica = node.replica();
+        let machine_power = Power::new(machine.power().value() * replica.value()).unwrap();
+
+        Ok(PlanDetailNode::Recipe {
+            recipe: PlanRecipeDetail {
+                recipe_id: recipe.id().clone(),
+                machine_id: machine.id().clone(),
+                machine_name: machine.name().clone(),
+                machine_power: Some(machine_power),
+                replica,
             },
             children: Vec::new(),
         })
