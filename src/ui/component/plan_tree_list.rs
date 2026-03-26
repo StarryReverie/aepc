@@ -145,25 +145,22 @@ fn format_plan_detail_node(node: &PlanDetailNode, indent: &str) -> Line<'static>
             recipe,
             product_names,
             ..
-        } => {
-            // let product_names = ;
-            to_line(
-                indent,
-                vec![
-                    span_machine_name(recipe.machine_name().to_string()),
-                    Span::raw("=>"),
-                    Span::raw(
-                        product_names
-                            .iter()
-                            .map(|p| p.value())
-                            .collect::<Vec<_>>()
-                            .join(" + "),
-                    ),
-                    span_replica(recipe.replica()),
-                    span_power(recipe.machine_power()),
-                ],
-            )
-        }
+        } => to_line(
+            indent,
+            vec![
+                span_machine_name(recipe.machine_name().to_string()),
+                Span::raw("=>"),
+                Span::raw(
+                    product_names
+                        .iter()
+                        .map(|p| p.value())
+                        .collect::<Vec<_>>()
+                        .join(" + "),
+                ),
+                span_replica(recipe.replica()),
+                span_power(recipe.machine_power()),
+            ],
+        ),
     }
 }
 
@@ -190,13 +187,13 @@ fn span_flow(flow_all: Flow, flow_cyclic: Flow) -> Span<'static> {
     let str = if flow_cyclic == Flow::zero() {
         format!("[{}]", flow_all)
     } else {
-        format!("[{} -> {} back]", flow_all, flow_cyclic)
+        format!("[{} -> {} (back)]", flow_all.no_unit_display(), flow_cyclic)
     };
     Span::styled(str, Style::new().fg(COLOR_FLOW))
 }
 
 fn span_replica(replica: Replica) -> Span<'static> {
-    let str = format!("[{replica}]");
+    let str = format!("[{}]", replica.compact_display());
     Span::styled(str, Style::new().fg(COLOR_PRODUCT))
 }
 
