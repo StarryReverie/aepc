@@ -1,15 +1,23 @@
 use ratatui::buffer::Buffer;
 use ratatui::crossterm::event::{Event, KeyCode};
 use ratatui::layout::Rect;
-use ratatui::text::Line;
+use ratatui::style::{Color, Style};
+use ratatui::text::{Line, Span};
 use ratatui::widgets::{List, ListItem, StatefulWidget, Widget};
 use tokio::sync::mpsc::Sender;
 
 use crate::application::query::plan::{PlanDetail, PlanDetailNode};
+use crate::domain::machine::model::Power;
+use crate::domain::recipe::model::{Flow, Replica};
 use crate::infrastructure::util::component::Component;
 use crate::infrastructure::util::state::State;
 use crate::ui::state::{PlanTabFocus, PlanTabState, PlanTreeListAction, PlanTreeListState};
 use crate::ui::style;
+
+const COLOR_MACHINE: Color = Color::Rgb(100, 149, 237);
+const COLOR_FLOW: Color = Color::Rgb(60, 179, 113);
+const COLOR_POWER: Color = Color::Rgb(255, 191, 0);
+const COLOR_PRODUCT: Color = Color::Rgb(64, 224, 208);
 
 pub struct PlanTreeListComponent {
     plan_tree_list_requester: Sender<PlanTreeListAction>,
@@ -84,7 +92,7 @@ impl Widget for &PlanTreeListComponent {
 fn flatten_plan_detail_to_list_items(
     plan_detail: &PlanDetail,
     _depth: usize,
-    items: &mut Vec<ListItem>,
+    items: &mut Vec<ListItem<'static>>,
 ) {
     flatten_node_to_list_items(plan_detail.goal(), 0, items);
 
@@ -97,45 +105,102 @@ fn flatten_plan_detail_to_list_items(
     }
 }
 
-fn flatten_node_to_list_items(node: &PlanDetailNode, depth: usize, items: &mut Vec<ListItem>) {
+fn flatten_node_to_list_items(
+    node: &PlanDetailNode,
+    depth: usize,
+    items: &mut Vec<ListItem<'static>>,
+) {
     let indent = "    ".repeat(depth) + " ";
-    let line = format_plan_detail_node(node, indent);
-    items.push(ListItem::new(line));
+    let line = format_plan_detail_node(node, &indent);
+    items.push(ListItem::new(line.clone()));
 
     for dep in node.children() {
         flatten_node_to_list_items(dep, depth + 1, items);
     }
 }
 
-fn format_plan_detail_node(node: &PlanDetailNode, indent: String) -> Line<'static> {
+fn format_plan_detail_node(node: &PlanDetailNode, indent: &str) -> Line<'static> {
     match node {
-        PlanDetailNode::Combined { target, recipe, .. } => {
-            let power_str = recipe
-                .machine_power()
-                .map_or(String::new(), |power| format!(" [{power}]"));
-            Line::from(format!(
-                "{indent}{} @ {} [{}]{}",
-                target.target_name(),
-                recipe.machine_name(),
-                target.flow_all(),
-                power_str
-            ))
-        }
-        PlanDetailNode::Target { target, .. } => Line::from(format!(
-            "{indent}{} [{}]",
-            target.target_name(),
-            target.flow_all(),
-        )),
-        PlanDetailNode::Recipe { recipe, .. } => {
-            let power_str = recipe
-                .machine_power()
-                .map_or(String::new(), |power| format!(" [{power}]"));
-            Line::from(format!(
-                "{indent}<{}> [{}]{}",
-                recipe.machine_name(),
-                recipe.replica(),
-                power_str
-            ))
+        PlanDetailNode::Combined { target, recipe, .. } => to_line(
+            indent,
+            vec![
+                Span::raw(target.target_name().to_string()),
+                Span::raw("@"),
+                span_machine_name(recipe.machine_name().to_string()),
+                span_flow(target.flow_all(), target.flow_cyclic()),
+                span_replica(recipe.replica()),
+                span_power(recipe.machine_power()),
+            ],
+        ),
+        PlanDetailNode::Target { target, .. } => to_line(
+            indent,
+            vec![
+                Span::raw(target.target_name().to_string()),
+                Span::raw("@"),
+                span_machine_name("...".to_string()),
+                span_flow(target.flow_all(), target.flow_cyclic()),
+            ],
+        ),
+        PlanDetailNode::Recipe {
+            recipe,
+            product_names,
+            ..
+        } => {
+            // let product_names = ;
+            to_line(
+                indent,
+                vec![
+                    span_machine_name(recipe.machine_name().to_string()),
+                    Span::raw("=>"),
+                    Span::raw(
+                        product_names
+                            .iter()
+                            .map(|p| p.value())
+                            .collect::<Vec<_>>()
+                            .join(" + "),
+                    ),
+                    span_replica(recipe.replica()),
+                    span_power(recipe.machine_power()),
+                ],
+            )
         }
     }
+}
+
+fn to_line(indent: &str, spans: Vec<Span<'static>>) -> Line<'static> {
+    let mut res = vec![Span::raw(indent.to_string())];
+    let mut first = true;
+    for span in spans {
+        if first {
+            first = false;
+            res.push(span);
+        } else {
+            res.push(Span::from(" "));
+            res.push(span);
+        }
+    }
+    Line::from(res)
+}
+
+fn span_machine_name(s: String) -> Span<'static> {
+    Span::styled(s, Style::new().fg(COLOR_MACHINE))
+}
+
+fn span_flow(flow_all: Flow, flow_cyclic: Flow) -> Span<'static> {
+    let str = if flow_cyclic == Flow::zero() {
+        format!("[{}]", flow_all)
+    } else {
+        format!("[{} -> {} back]", flow_all, flow_cyclic)
+    };
+    Span::styled(str, Style::new().fg(COLOR_FLOW))
+}
+
+fn span_replica(replica: Replica) -> Span<'static> {
+    let str = format!("[{replica}]");
+    Span::styled(str, Style::new().fg(COLOR_PRODUCT))
+}
+
+fn span_power(power: Option<Power>) -> Span<'static> {
+    let str = power.map_or("[-]".to_string(), |power| format!("[{power}]"));
+    Span::styled(str, Style::new().fg(COLOR_POWER))
 }

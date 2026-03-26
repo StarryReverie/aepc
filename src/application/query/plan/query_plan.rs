@@ -67,6 +67,7 @@ pub enum PlanDetailNode {
     },
     Recipe {
         recipe: PlanRecipeDetail,
+        product_names: Vec<ItemName>,
         children: Vec<PlanDetailNode>,
     },
 }
@@ -275,6 +276,7 @@ impl PlanQueryServiceImpl {
         node: &NormalPlanRecipeNode,
     ) -> Result<PlanDetailNode, QueryPlanError> {
         let recipe = self.get_recipe_entity(node.recipe()).await?;
+        let product_names = self.get_recipe_product_names(&recipe).await?;
         let machine = self.get_machine_entity(recipe.machine()).await?;
 
         let mut children = Vec::new();
@@ -293,6 +295,7 @@ impl PlanQueryServiceImpl {
                 machine_power: Some(machine_power),
                 replica,
             },
+            product_names,
             children,
         })
     }
@@ -302,6 +305,7 @@ impl PlanQueryServiceImpl {
         node: &PartialPlanRecipeNode,
     ) -> Result<PlanDetailNode, QueryPlanError> {
         let recipe = self.get_recipe_entity(node.recipe()).await?;
+        let product_names = self.get_recipe_product_names(&recipe).await?;
         let machine = self.get_machine_entity(recipe.machine()).await?;
 
         let replica = node.replica();
@@ -315,6 +319,7 @@ impl PlanQueryServiceImpl {
                 machine_power: Some(machine_power),
                 replica,
             },
+            product_names,
             children: Vec::new(),
         })
     }
@@ -324,6 +329,7 @@ impl PlanQueryServiceImpl {
         node: &CyclicPlanRecipeNode,
     ) -> Result<PlanDetailNode, QueryPlanError> {
         let recipe = self.get_recipe_entity(node.recipe()).await?;
+        let product_names = self.get_recipe_product_names(&recipe).await?;
         let machine = self.get_machine_entity(recipe.machine()).await?;
 
         let replica = node.replica();
@@ -337,6 +343,7 @@ impl PlanQueryServiceImpl {
                 machine_power: Some(machine_power),
                 replica,
             },
+            product_names,
             children: Vec::new(),
         })
     }
@@ -361,6 +368,18 @@ impl PlanQueryServiceImpl {
                 entity: format!("recipe {:?}", id),
             })?;
         Ok(recipe)
+    }
+
+    async fn get_recipe_product_names(
+        &self,
+        recipe: &Recipe,
+    ) -> Result<Vec<ItemName>, QueryPlanError> {
+        let mut product_names = Vec::with_capacity(recipe.products().len());
+        for (id, _) in recipe.products() {
+            let product = self.get_item_entity(id).await?;
+            product_names.push(product.name().clone());
+        }
+        Ok(product_names)
     }
 
     async fn get_machine_entity(&self, id: &MachineId) -> Result<Machine, QueryPlanError> {
