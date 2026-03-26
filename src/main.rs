@@ -43,12 +43,11 @@ where
                     break Ok(());
                 }
             }
-            _ = tokio::time::sleep(Duration::from_millis(16)) => {
-                terminal.draw(|frame| {
-                    frame.render_widget(&app, frame.area());
-                })?;
-            }
+            _ = tokio::time::sleep(Duration::from_millis(100)) => {}
         }
+        terminal.draw(|frame| {
+            frame.render_widget(&app, frame.area());
+        })?;
     }
 }
 
