@@ -8,7 +8,7 @@ pub fn block_default() -> Block<'static> {
 
 pub fn block_focused() -> Block<'static> {
     let focused_border = Style::default()
-        .fg(Color::Yellow)
+        .fg(Color::Rgb(119, 181, 248))
         .add_modifier(Modifier::BOLD);
     block_base().border_style(focused_border)
 }

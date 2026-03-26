@@ -2,8 +2,7 @@ use ratatui::style::{Color, Modifier, Style};
 
 pub fn highlight_default() -> Style {
     Style::default()
-        .bg(Color::Cyan)
-        .fg(Color::Black)
+        .bg(Color::Rgb(80, 84, 92))
         .add_modifier(Modifier::BOLD)
 }
 

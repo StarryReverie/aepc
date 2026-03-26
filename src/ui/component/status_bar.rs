@@ -37,8 +37,8 @@ impl Widget for &StatusBarComponent {
         let app_state = self.app_state.get();
 
         let color = match app_state.status_level() {
-            StatusLevel::Info => Color::Green,
-            StatusLevel::Error => Color::Red,
+            StatusLevel::Info => Color::Rgb(100, 180, 100),
+            StatusLevel::Error => Color::Rgb(200, 80, 80),
         };
 
         let text = Span::raw(status_bar_state.text()).style(Style::new().fg(color));
