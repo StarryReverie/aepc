@@ -1,5 +1,5 @@
 use std::backtrace::Backtrace;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
 use anyhow::Error as AnyhowError;
@@ -241,14 +241,17 @@ impl PlanFactoryImpl {
                 ps.push(recipe);
             });
         });
+        item_producers.values_mut().for_each(|producers| {
+            producers.sort_by(|a, b| a.id().cmp(b.id()));
+        });
 
         let context = BuildPlanContext {
             item_producers: &item_producers,
             solution,
         };
         let mut trace = Vec::new();
-        let mut common_intermediates = HashMap::new();
-        let mut common_recipes = HashMap::new();
+        let mut common_intermediates = BTreeMap::new();
+        let mut common_recipes = BTreeMap::new();
 
         let goal = self.build_plan_item_node(
             &context,
@@ -265,8 +268,8 @@ impl PlanFactoryImpl {
         &self,
         context: &BuildPlanContext<'a>,
         trace: &mut Vec<BuildPlanTrace<'a>>,
-        common_intermediates: &mut HashMap<ItemId, PlanItemNode>,
-        common_recipes: &mut HashMap<RecipeId, PlanRecipeNode>,
+        common_intermediates: &mut BTreeMap<ItemId, PlanItemNode>,
+        common_recipes: &mut BTreeMap<RecipeId, PlanRecipeNode>,
         target: &'a ItemId,
         flow_target: Flow,
     ) -> PlanItemNode {
@@ -339,8 +342,8 @@ impl PlanFactoryImpl {
         &self,
         context: &BuildPlanContext<'a>,
         trace: &mut Vec<BuildPlanTrace<'a>>,
-        common_intermediates: &mut HashMap<ItemId, PlanItemNode>,
-        common_recipes: &mut HashMap<RecipeId, PlanRecipeNode>,
+        common_intermediates: &mut BTreeMap<ItemId, PlanItemNode>,
+        common_recipes: &mut BTreeMap<RecipeId, PlanRecipeNode>,
         target: &'a ItemId,
         flow_target: Flow,
         producer: &'a Recipe,
@@ -404,8 +407,8 @@ impl PlanFactoryImpl {
         &self,
         context: &BuildPlanContext<'a>,
         trace: &mut Vec<BuildPlanTrace<'a>>,
-        common_intermediates: &mut HashMap<ItemId, PlanItemNode>,
-        common_recipes: &mut HashMap<RecipeId, PlanRecipeNode>,
+        common_intermediates: &mut BTreeMap<ItemId, PlanItemNode>,
+        common_recipes: &mut BTreeMap<RecipeId, PlanRecipeNode>,
         target: &'a ItemId,
         flow_target: Flow,
         producers: &[&'a Recipe],
@@ -462,8 +465,8 @@ impl PlanFactoryImpl {
         &self,
         context: &BuildPlanContext<'a>,
         trace: &mut Vec<BuildPlanTrace<'a>>,
-        common_intermediates: &mut HashMap<ItemId, PlanItemNode>,
-        common_recipes: &mut HashMap<RecipeId, PlanRecipeNode>,
+        common_intermediates: &mut BTreeMap<ItemId, PlanItemNode>,
+        common_recipes: &mut BTreeMap<RecipeId, PlanRecipeNode>,
         producer: &'a Recipe,
     ) -> PlanRecipeNode {
         let current_len = trace.len();
@@ -518,8 +521,8 @@ impl PlanFactoryImpl {
         &self,
         context: &BuildPlanContext<'a>,
         trace: &mut Vec<BuildPlanTrace<'a>>,
-        common_intermediates: &mut HashMap<ItemId, PlanItemNode>,
-        common_recipes: &mut HashMap<RecipeId, PlanRecipeNode>,
+        common_intermediates: &mut BTreeMap<ItemId, PlanItemNode>,
+        common_recipes: &mut BTreeMap<RecipeId, PlanRecipeNode>,
         producer: &'a Recipe,
         replica: Replica,
     ) -> PlanRecipeNode {

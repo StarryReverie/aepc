@@ -396,7 +396,7 @@ impl PlanQueryServiceImpl {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::collections::BTreeMap;
 
     use unimock::*;
 
@@ -436,7 +436,7 @@ mod tests {
                     .build()
                     .unwrap(),
             );
-            Plan::new(goal_node, HashMap::new(), HashMap::new())
+            Plan::new(goal_node, BTreeMap::new(), BTreeMap::new())
         }
 
         let item_repo =

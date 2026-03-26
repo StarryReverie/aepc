@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use getset::Getters;
 
@@ -10,15 +10,15 @@ use crate::domain::recipe::model::RecipeId;
 #[getset(get = "pub")]
 pub struct Plan {
     goal: PlanItemNode,
-    common_intermediates: HashMap<ItemId, PlanItemNode>,
-    common_recipes: HashMap<RecipeId, PlanRecipeNode>,
+    common_intermediates: BTreeMap<ItemId, PlanItemNode>,
+    common_recipes: BTreeMap<RecipeId, PlanRecipeNode>,
 }
 
 impl Plan {
     pub fn new(
         goal: PlanItemNode,
-        common_intermediates: HashMap<ItemId, PlanItemNode>,
-        common_recipes: HashMap<RecipeId, PlanRecipeNode>,
+        common_intermediates: BTreeMap<ItemId, PlanItemNode>,
+        common_recipes: BTreeMap<RecipeId, PlanRecipeNode>,
     ) -> Self {
         Self {
             goal,
