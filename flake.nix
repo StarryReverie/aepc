@@ -11,6 +11,10 @@
       inputs.nixpkgs-lib.follows = "nixpkgs";
     };
 
+    import-tree = {
+      url = "github:vic/import-tree/main";
+    };
+
     nixpkgs = {
       url = "github:NixOS/nixpkgs/nixos-unstable";
     };
@@ -31,21 +35,6 @@
         "aarch64-darwin"
       ];
 
-      perSystem =
-        { system, pkgs, ... }:
-        {
-          _module.args.pkgs = (import inputs.nixpkgs) {
-            inherit system;
-            overlays = [ inputs.rust-overlay.overlays.default ];
-          };
-
-          devShells.default = pkgs.mkShellNoCC {
-            packages = [
-              (pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml)
-              pkgs.nixfmt
-              pkgs.nixfmt-tree
-            ];
-          };
-        };
+      imports = (inputs.import-tree.withLib inputs.nixpkgs.lib).leafs ./nix/flake;
     };
 }
