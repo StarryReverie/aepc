@@ -3,7 +3,7 @@ use ratatui::crossterm::event::Event;
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Style};
 use ratatui::text::Span;
-use ratatui::widgets::{Padding, Paragraph, Widget};
+use ratatui::widgets::{Paragraph, Widget};
 
 use crate::infrastructure::util::component::Component;
 use crate::infrastructure::util::state::State;
@@ -44,11 +44,7 @@ impl Widget for &StatusBarComponent {
         let text = Span::raw(status_bar_state.text()).style(Style::new().fg(color));
 
         let paragraph = Paragraph::new(text)
-            .block(
-                style::block_default()
-                    .title(" Status ")
-                    .padding(Padding::horizontal(1)),
-            )
+            .block(style::block_default().title(" Status "))
             .scroll((0, status_bar_state.scroll_offset() as u16));
 
         paragraph.render(area, buf);

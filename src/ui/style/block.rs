@@ -1,5 +1,5 @@
 use ratatui::style::{Color, Modifier, Style};
-use ratatui::widgets::{Block, BorderType, Borders};
+use ratatui::widgets::{Block, BorderType, Borders, Padding};
 
 pub fn block_default() -> Block<'static> {
     let default_border = Style::default().fg(Color::Gray);
@@ -25,4 +25,5 @@ fn block_base() -> Block<'static> {
     Block::new()
         .border_type(BorderType::Plain)
         .borders(Borders::all())
+        .padding(Padding::horizontal(1))
 }

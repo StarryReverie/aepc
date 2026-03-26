@@ -70,7 +70,7 @@ impl Widget for &GoalItemSearchListComponent {
 
         let list_items: Vec<ListItem> = items
             .iter()
-            .map(|item| ListItem::new(format!(" {}", item.name().value())))
+            .map(|item| ListItem::new(item.name().to_string()))
             .collect();
 
         let list = List::new(list_items)

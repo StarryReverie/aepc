@@ -33,7 +33,7 @@ impl Widget for &PlanGoalLabelComponent {
         let expected_goal_flow = plan_tab_state.expected_goal_flow();
 
         let line = Line::from(vec![
-            Span::from(" Expected Goal = "),
+            Span::from("Expected Goal = "),
             expected_goal_item
                 .as_ref()
                 .map(|item| Span::from(item.name().value()))
