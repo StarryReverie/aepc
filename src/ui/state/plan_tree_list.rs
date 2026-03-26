@@ -7,6 +7,8 @@ use tokio::sync::mpsc::{self, Receiver, Sender};
 use crate::application::query::plan::{
     DynPlanQueryService, PlanDetail, PlanQueryService, QueryPlanError, QueryPlanRequest,
 };
+use crate::domain::item::model::ItemId;
+use crate::domain::recipe::model::Flow;
 use crate::infrastructure::util::state::{State, StateManager, StateManagerContext, StateSource};
 use crate::ui::state::{AppAction, PlanTabState, StatusLevel};
 
@@ -16,6 +18,10 @@ pub struct PlanTreeListState {
     plan_detail: Option<PlanDetail>,
     #[getset(get_copy = "pub")]
     list_state: ListState,
+    #[getset(get = "pub")]
+    last_goal_item_id: Option<ItemId>,
+    #[getset(get_copy = "pub")]
+    last_flow: Option<Flow>,
 }
 
 impl Default for PlanTreeListState {
@@ -23,6 +29,8 @@ impl Default for PlanTreeListState {
         Self {
             plan_detail: None,
             list_state: ListState::default().with_selected(Some(0)),
+            last_goal_item_id: None,
+            last_flow: None,
         }
     }
 }
@@ -114,9 +122,10 @@ impl PlanTreeListStateManager {
     fn handle_response_plan_loaded(&mut self, result: Result<PlanDetail, QueryPlanError>) {
         match result {
             Ok(plan_detail) => {
-                self.source.set(PlanTreeListState {
+                self.source.modify(|state| PlanTreeListState {
                     plan_detail: Some(plan_detail),
                     list_state: ListState::default().with_selected(Some(0)),
+                    ..state.clone()
                 });
                 let _ = self.app_requester.try_send(AppAction::SetStatus {
                     text: "Plan generated successfully".to_string(),
@@ -134,10 +143,31 @@ impl PlanTreeListStateManager {
 
     fn handle_plan_tab_state_changed(&mut self) {
         let plan_tab_state = self.plan_tab_state.get();
-        if let (Some(goal_item), Some(flow)) = (
-            plan_tab_state.expected_goal_item(),
-            plan_tab_state.expected_goal_flow(),
-        ) {
+        let goal_item = plan_tab_state.expected_goal_item();
+        let flow = plan_tab_state.expected_goal_flow();
+        let goal_item_id = goal_item.as_ref().map(|i| i.id());
+
+        let changed = {
+            let current = self.source.get();
+            let goal_changed = match (current.last_goal_item_id(), goal_item_id) {
+                (Some(cached), Some(id)) => cached != id,
+                (None, None) => false,
+                _ => true,
+            };
+            let flow_changed = current.last_flow() != flow;
+            goal_changed || flow_changed
+        };
+        if !changed {
+            return;
+        }
+
+        self.source.modify(|state| PlanTreeListState {
+            last_goal_item_id: goal_item_id.cloned(),
+            last_flow: flow,
+            ..state.clone()
+        });
+
+        if let (Some(goal_item), Some(flow)) = (goal_item, flow) {
             let request = QueryPlanRequest {
                 goal: goal_item.id().clone(),
                 expected_flow: flow,
