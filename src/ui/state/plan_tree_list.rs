@@ -118,6 +118,10 @@ impl PlanTreeListStateManager {
                     plan_detail: Some(plan_detail),
                     list_state: ListState::default().with_selected(Some(0)),
                 });
+                let _ = self.app_requester.try_send(AppAction::SetStatus {
+                    text: "Plan generated successfully".to_string(),
+                    level: StatusLevel::Info,
+                });
             }
             Err(err) => {
                 let _ = self.app_requester.try_send(AppAction::SetStatus {
