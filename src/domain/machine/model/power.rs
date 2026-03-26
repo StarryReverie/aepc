@@ -41,7 +41,7 @@ impl PartialOrd for Power {
 
 impl Display for Power {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        write!(f, "{} kW", self.value())
+        write!(f, "{} kW", ((self.value() * 100.0).round()) / 100.0)
     }
 }
 

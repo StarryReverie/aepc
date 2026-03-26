@@ -26,6 +26,10 @@ impl Flow {
     pub fn value(&self) -> f64 {
         self.0
     }
+
+    pub fn no_unit_display(self) -> FlowNoUnitDisplay {
+        FlowNoUnitDisplay(self)
+    }
 }
 
 impl PartialEq for Flow {
@@ -48,7 +52,7 @@ impl PartialOrd for Flow {
 
 impl Display for Flow {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        write!(f, "{} items/min", self.value())
+        write!(f, "{} items/min", self.no_unit_display())
     }
 }
 
@@ -94,6 +98,14 @@ impl Mul<Period> for Flow {
 pub enum NewFlowError {
     #[snafu(display("flow should not be negative"))]
     Negative { backtrace: Backtrace },
+}
+
+pub struct FlowNoUnitDisplay(Flow);
+
+impl Display for FlowNoUnitDisplay {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        write!(f, "{}", ((self.0.value() * 100.0).round()) / 100.0)
+    }
 }
 
 #[cfg(test)]

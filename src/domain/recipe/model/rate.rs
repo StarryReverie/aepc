@@ -44,7 +44,11 @@ impl PartialOrd for Rate {
 
 impl Display for Rate {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        write!(f, "{} items/(min*times)", self.value())
+        write!(
+            f,
+            "{} items/(min*times)",
+            ((self.value() * 100.0).round()) / 100.0
+        )
     }
 }
 

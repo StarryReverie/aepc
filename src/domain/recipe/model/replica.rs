@@ -24,6 +24,10 @@ impl Replica {
     pub fn value(&self) -> f64 {
         self.0
     }
+
+    pub fn compact_display(self) -> ReplicaCompactDisplay {
+        ReplicaCompactDisplay(self)
+    }
 }
 
 impl PartialEq for Replica {
@@ -46,7 +50,7 @@ impl PartialOrd for Replica {
 
 impl Display for Replica {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        write!(f, "{} times", self.value())
+        write!(f, "{} times", ((self.value() * 100.0).round()) / 100.0)
     }
 }
 
@@ -64,6 +68,14 @@ impl Add for Replica {
 pub enum NewReplicaError {
     #[snafu(display("replica should be positive"))]
     ZeroOrNegative { backtrace: Backtrace },
+}
+
+pub struct ReplicaCompactDisplay(Replica);
+
+impl Display for ReplicaCompactDisplay {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        write!(f, "{}x", ((self.0.value() * 100.0).round()) / 100.0)
+    }
 }
 
 #[cfg(test)]

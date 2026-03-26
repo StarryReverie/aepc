@@ -41,7 +41,7 @@ impl PartialOrd for Period {
 
 impl Display for Period {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        write!(f, "{} s", self.value())
+        write!(f, "{} s", ((self.value() * 100.0).round()) / 100.0)
     }
 }
 

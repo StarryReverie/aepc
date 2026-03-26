@@ -44,7 +44,7 @@ impl PartialOrd for Quantity {
 
 impl Display for Quantity {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        write!(f, "{} items", self.value())
+        write!(f, "{} items", ((self.value() * 100.0).round()) / 100.0)
     }
 }
 

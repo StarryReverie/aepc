@@ -12,7 +12,7 @@ pub use quantity::{NewQuantityError, Quantity};
 pub use rate::{NewRateError, Rate};
 pub use recipe::{NewRecipeError, Recipe};
 pub use recipe_id::{NewRecipeIdError, RecipeId};
-pub use replica::{NewReplicaError, Replica};
+pub use replica::{NewReplicaError, Replica, ReplicaCompactDisplay};
 
 #[cfg(test)]
 pub mod test_helper {
