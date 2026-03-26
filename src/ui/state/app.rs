@@ -3,7 +3,8 @@ use tokio::sync::mpsc::{self, Receiver};
 
 use crate::infrastructure::util::state::{State, StateManager, StateManagerContext, StateSource};
 
-const INIT_STATUS_TEXT: &str = "Welcome to aepc ('Arknights: Endfield' Pipeline Calculator)";
+const INIT_STATUS_TEXT: &str =
+    "Welcome to Aepc! Open issues/PRs on https://github.com/StarryReverie/aepc";
 
 #[derive(Debug, Clone, PartialEq, Eq, CopyGetters, Getters)]
 pub struct AppState {
