@@ -41,7 +41,7 @@ impl PartialOrd for Power {
 
 impl Display for Power {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        write!(f, "{} kW", ((self.value() * 100.0).round()) / 100.0)
+        write!(f, "{} MW", ((self.value() * 100.0).round()) / 100.0)
     }
 }
 
@@ -75,7 +75,7 @@ mod tests {
 
     #[test]
     fn test_display() -> AnyhowResult<()> {
-        assert_eq!(format!("{}", Power::new(123.45)?), "123.45 kW");
+        assert_eq!(format!("{}", Power::new(123.45)?), "123.45 MW");
         Ok(())
     }
 }
