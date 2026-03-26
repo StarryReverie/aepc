@@ -6,7 +6,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{List, ListItem, StatefulWidget, Widget};
 use tokio::sync::mpsc::Sender;
 
-use crate::application::query::plan::{PlanDetail, PlanDetailNode};
+use crate::application::query::plan::{PlanDetail, PlanDetailNode, PlanNodeKind};
 use crate::domain::machine::model::Power;
 use crate::domain::recipe::model::{Flow, Replica};
 use crate::infrastructure::util::component::Component;
@@ -18,6 +18,7 @@ const COLOR_MACHINE: Color = Color::Rgb(100, 149, 237);
 const COLOR_FLOW: Color = Color::Rgb(60, 179, 113);
 const COLOR_POWER: Color = Color::Rgb(255, 191, 0);
 const COLOR_PRODUCT: Color = Color::Rgb(64, 224, 208);
+const COLOR_KIND: Color = Color::Rgb(255, 140, 0);
 
 pub struct PlanTreeListComponent {
     plan_tree_list_requester: Sender<PlanTreeListAction>,
@@ -155,6 +156,7 @@ fn format_node(node: &PlanDetailNode, prefix: String) -> Line<'static> {
                 span_flow(target.flow_all(), target.flow_cyclic()),
                 span_replica(recipe.replica()),
                 span_power(recipe.machine_power()),
+                span_kind(node.kind()),
             ],
         ),
         PlanDetailNode::Target { target, .. } => to_line(
@@ -164,6 +166,7 @@ fn format_node(node: &PlanDetailNode, prefix: String) -> Line<'static> {
                 Span::raw("@"),
                 span_machine_name("...".to_string()),
                 span_flow(target.flow_all(), target.flow_cyclic()),
+                span_kind(node.kind()),
             ],
         ),
         PlanDetailNode::Recipe {
@@ -184,6 +187,7 @@ fn format_node(node: &PlanDetailNode, prefix: String) -> Line<'static> {
                 ),
                 span_replica(recipe.replica()),
                 span_power(recipe.machine_power()),
+                span_kind(node.kind()),
             ],
         ),
     }
@@ -225,4 +229,16 @@ fn span_replica(replica: Replica) -> Span<'static> {
 fn span_power(power: Option<Power>) -> Span<'static> {
     let str = power.map_or("[-]".to_string(), |power| format!("[{power}]"));
     Span::styled(str, Style::new().fg(COLOR_POWER))
+}
+
+fn span_kind(kind: PlanNodeKind) -> Span<'static> {
+    let str = match kind {
+        PlanNodeKind::Source => String::new(),
+        PlanNodeKind::Partial => "(partial)".to_string(),
+        PlanNodeKind::Cyclic { from_steps_ahead } => format!("(cyclic: {}^)", from_steps_ahead),
+    };
+    match kind {
+        PlanNodeKind::Source => Span::raw(str),
+        _ => Span::styled(str, Style::new().fg(COLOR_KIND)),
+    }
 }

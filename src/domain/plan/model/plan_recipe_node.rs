@@ -78,7 +78,7 @@ pub struct CyclicPlanRecipeNode {
     recipe: RecipeId,
     #[getset(get_copy = "pub")]
     replica: Replica,
-    #[getset(get = "pub")]
+    #[getset(get_copy = "pub")]
     from_steps_ahead: usize,
 }
 

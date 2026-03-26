@@ -21,7 +21,7 @@ impl Default for GoalItemSearchListState {
     fn default() -> Self {
         Self {
             filtered_items: Vec::new(),
-            list_state: ListState::default(),
+            list_state: ListState::default().with_selected(Some(0)),
         }
     }
 }
@@ -139,7 +139,7 @@ impl GoalItemSearchListStateManager {
             Ok(filtered_items) => {
                 self.source.modify(|state| GoalItemSearchListState {
                     filtered_items,
-                    list_state: ListState::default(),
+                    list_state: ListState::default().with_selected(Some(0)),
                     ..state.clone()
                 });
             }

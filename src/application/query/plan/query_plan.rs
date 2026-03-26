@@ -59,15 +59,18 @@ pub enum PlanDetailNode {
     Combined {
         target: PlanTargetDetail,
         recipe: PlanRecipeDetail,
+        kind: PlanNodeKind,
         children: Vec<PlanDetailNode>,
     },
     Target {
         target: PlanTargetDetail,
+        kind: PlanNodeKind,
         children: Vec<PlanDetailNode>,
     },
     Recipe {
         recipe: PlanRecipeDetail,
         product_names: Vec<ItemName>,
+        kind: PlanNodeKind,
         children: Vec<PlanDetailNode>,
     },
 }
@@ -78,6 +81,14 @@ impl PlanDetailNode {
             Self::Combined { children, .. } => &children,
             Self::Target { children, .. } => &children,
             Self::Recipe { children, .. } => &children,
+        }
+    }
+
+    pub fn kind(&self) -> PlanNodeKind {
+        match self {
+            Self::Combined { kind, .. } => *kind,
+            Self::Target { kind, .. } => *kind,
+            Self::Recipe { kind, .. } => *kind,
         }
     }
 }
@@ -94,8 +105,6 @@ pub struct PlanTargetDetail {
     flow_next: Flow,
     #[getset(get_copy = "pub")]
     flow_cyclic: Flow,
-    #[getset(get_copy = "pub")]
-    from_steps_ahead: Option<usize>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Getters, CopyGetters)]
@@ -110,6 +119,13 @@ pub struct PlanRecipeDetail {
     machine_power: Option<Power>,
     #[getset(get_copy = "pub")]
     replica: Replica,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlanNodeKind {
+    Source,
+    Partial,
+    Cyclic { from_steps_ahead: usize },
 }
 
 impl PlanQueryServiceImpl {
@@ -186,7 +202,6 @@ impl PlanQueryServiceImpl {
                 flow_all: node.flow_next() + node.flow_cyclic(),
                 flow_next: node.flow_next(),
                 flow_cyclic: node.flow_cyclic(),
-                from_steps_ahead: None,
             },
             recipe: PlanRecipeDetail {
                 recipe_id: recipe.id().clone(),
@@ -195,6 +210,7 @@ impl PlanQueryServiceImpl {
                 machine_power: Some(machine_power),
                 replica,
             },
+            kind: PlanNodeKind::Source,
             children: dependencies,
         })
     }
@@ -218,8 +234,8 @@ impl PlanQueryServiceImpl {
                 flow_all: node.flow_next() + node.flow_cyclic(),
                 flow_next: node.flow_next(),
                 flow_cyclic: node.flow_cyclic(),
-                from_steps_ahead: None,
             },
+            kind: PlanNodeKind::Source,
             children,
         })
     }
@@ -236,8 +252,8 @@ impl PlanQueryServiceImpl {
                 flow_all: node.flow_next(),
                 flow_next: node.flow_next(),
                 flow_cyclic: Flow::zero(),
-                from_steps_ahead: None,
             },
+            kind: PlanNodeKind::Partial,
             children: Vec::new(),
         })
     }
@@ -254,7 +270,9 @@ impl PlanQueryServiceImpl {
                 flow_all: node.flow_next(),
                 flow_next: node.flow_next(),
                 flow_cyclic: Flow::zero(),
-                from_steps_ahead: Some(node.from_steps_ahead()),
+            },
+            kind: PlanNodeKind::Cyclic {
+                from_steps_ahead: node.from_steps_ahead(),
             },
             children: Vec::new(),
         })
@@ -296,6 +314,7 @@ impl PlanQueryServiceImpl {
                 replica,
             },
             product_names,
+            kind: PlanNodeKind::Source,
             children,
         })
     }
@@ -320,6 +339,7 @@ impl PlanQueryServiceImpl {
                 replica,
             },
             product_names,
+            kind: PlanNodeKind::Partial,
             children: Vec::new(),
         })
     }
@@ -344,6 +364,9 @@ impl PlanQueryServiceImpl {
                 replica,
             },
             product_names,
+            kind: PlanNodeKind::Cyclic {
+                from_steps_ahead: node.from_steps_ahead(),
+            },
             children: Vec::new(),
         })
     }
@@ -468,9 +491,16 @@ mod tests {
         let response = service.query_plan_impl(request).await.unwrap();
         let plan_detail = response.plan;
 
-        let PlanDetailNode::Combined { target, recipe, .. } = plan_detail.goal() else {
+        let PlanDetailNode::Combined {
+            target,
+            recipe,
+            kind,
+            ..
+        } = plan_detail.goal()
+        else {
             unreachable!();
         };
+        assert_eq!(*kind, PlanNodeKind::Source);
         assert_eq!(target.target_id(), item1().id());
         assert_eq!(target.target_name(), item1().name());
         assert_eq!(target.flow_all(), Flow::new(1.0).unwrap());
@@ -478,7 +508,6 @@ mod tests {
             target.flow_next(),
             Recipe::get_product_rate(&recipe1(), item1().id()).unwrap() * Replica::one(),
         );
-        assert_eq!(target.from_steps_ahead(), None);
 
         assert_eq!(recipe.recipe_id(), recipe1().id());
         assert_eq!(recipe.machine_id(), machine1().id());

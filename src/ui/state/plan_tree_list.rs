@@ -22,7 +22,7 @@ impl Default for PlanTreeListState {
     fn default() -> Self {
         Self {
             plan_detail: None,
-            list_state: ListState::default(),
+            list_state: ListState::default().with_selected(Some(0)),
         }
     }
 }
@@ -116,7 +116,7 @@ impl PlanTreeListStateManager {
             Ok(plan_detail) => {
                 self.source.set(PlanTreeListState {
                     plan_detail: Some(plan_detail),
-                    list_state: ListState::default(),
+                    list_state: ListState::default().with_selected(Some(0)),
                 });
             }
             Err(err) => {
