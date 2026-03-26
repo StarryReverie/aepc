@@ -10,7 +10,8 @@ use crate::domain::item::outbound::ItemRepository;
 use crate::domain::machine::model::{Machine, MachineId, MachineName, Power};
 use crate::domain::machine::outbound::MachineRepository;
 use crate::domain::plan::model::{
-    CyclicPlanItemNode, NormalPlanItemNode, PartialPlanItemNode, Plan, PlanItemNode,
+    AggregatedPlanItemNode, CyclicPlanItemNode, NormalPlanItemNode, PartialPlanItemNode, Plan,
+    PlanItemNode,
 };
 use crate::domain::plan::service::{CreatePlanError, PlanFactory};
 use crate::domain::recipe::model::{Flow, Recipe, RecipeId, Replica};
@@ -84,7 +85,7 @@ pub struct PlanTargetDetail {
     #[getset(get_copy = "pub")]
     flow_next: Flow,
     #[getset(get_copy = "pub")]
-    flow_cyclic: Option<Flow>,
+    flow_cyclic: Flow,
     #[getset(get_copy = "pub")]
     from_steps_ahead: Option<usize>,
 }
@@ -141,6 +142,7 @@ impl PlanQueryServiceImpl {
     ) -> Result<PlanDetailNode, QueryPlanError> {
         match node {
             PlanItemNode::Normal(node) => self.convert_normal_item_node(node).await,
+            PlanItemNode::Aggregated(node) => self.convert_aggregated_item_node(node).await,
             PlanItemNode::Partial(node) => self.convert_partial_item_node(node).await,
             PlanItemNode::Cyclic(node) => self.convert_cyclic_item_node(node).await,
         }
@@ -159,14 +161,9 @@ impl PlanQueryServiceImpl {
             dependencies.push(Box::pin(self.convert_item_node(dep)).await?);
         }
 
-        let flow_next = node.flow_next();
-        let flow_cyclic = node.replica_cyclic().map(|r| node.rate() * r);
-        let flow_all = flow_next + flow_cyclic.unwrap_or(Flow::zero());
+        let flow_all = node.flow_next() + node.flow_cyclic();
 
-        let replica = match node.replica_cyclic() {
-            Some(cyclic) => node.replica_next() + cyclic,
-            None => node.replica_next(),
-        };
+        let replica = node.replica();
         let machine_power = Power::new(machine.power().value() * replica.value()).unwrap();
 
         Ok(PlanDetailNode::Combined {
@@ -174,8 +171,8 @@ impl PlanQueryServiceImpl {
                 target_id: target.id().clone(),
                 target_name: target.name().clone(),
                 flow_all,
-                flow_next,
-                flow_cyclic,
+                flow_next: node.flow_next(),
+                flow_cyclic: node.flow_cyclic(),
                 from_steps_ahead: None,
             },
             recipe: PlanRecipeDetail {
@@ -189,6 +186,13 @@ impl PlanQueryServiceImpl {
         })
     }
 
+    async fn convert_aggregated_item_node(
+        &self,
+        _node: &AggregatedPlanItemNode,
+    ) -> Result<PlanDetailNode, QueryPlanError> {
+        todo!("convert `AggregatedPlanItemNode` to `PlanDetailNode`")
+    }
+
     async fn convert_partial_item_node(
         &self,
         node: &PartialPlanItemNode,
@@ -200,7 +204,7 @@ impl PlanQueryServiceImpl {
                 target_name: target.name().clone(),
                 flow_all: node.flow_next(),
                 flow_next: node.flow_next(),
-                flow_cyclic: None,
+                flow_cyclic: Flow::zero(),
                 from_steps_ahead: None,
             },
             children: Vec::new(),
@@ -218,7 +222,7 @@ impl PlanQueryServiceImpl {
                 target_name: target.name().clone(),
                 flow_all: node.flow_next(),
                 flow_next: node.flow_next(),
-                flow_cyclic: None,
+                flow_cyclic: Flow::zero(),
                 from_steps_ahead: Some(node.from_steps_ahead()),
             },
             children: Vec::new(),
@@ -273,7 +277,7 @@ mod tests {
     };
     use crate::domain::plan::model::{NormalPlanItemNode, Plan, PlanItemNode};
     use crate::domain::plan::service::{DynPlanFactory, test_helper::PlanFactoryMock};
-    use crate::domain::recipe::model::{Flow, Recipe, RecipeId, Replica, test_helper::make_recipe};
+    use crate::domain::recipe::model::{Flow, Recipe, Replica, test_helper::make_recipe};
     use crate::domain::recipe::outbound::{DynRecipeRepository, test_helper::RecipeRepositoryMock};
 
     use super::*;
@@ -292,16 +296,16 @@ mod tests {
         fn plan() -> Plan {
             let goal_node = PlanItemNode::Normal(
                 NormalPlanItemNode::builder()
-                    .target(ItemId::new("i1").unwrap())
-                    .recipe(RecipeId::new("r1").unwrap())
-                    .rate(Recipe::get_product_rate(&recipe1(), item1().id()).unwrap())
-                    .replica_next(Replica::new(1.0).unwrap())
-                    .replica_cyclic(None)
+                    .target(item1().id().clone())
+                    .recipe(recipe1().id().clone())
+                    .flow_next(recipe1().get_product_rate(item1().id()).unwrap() * Replica::one())
+                    .flow_cyclic(Flow::zero())
+                    .replica(Replica::one())
                     .dependencies(vec![])
                     .build()
                     .unwrap(),
             );
-            Plan::new(goal_node, HashMap::new())
+            Plan::new(goal_node, HashMap::new(), HashMap::new())
         }
 
         let item_repo =

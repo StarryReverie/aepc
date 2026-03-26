@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use anyhow::Error as AnyhowError;
+use good_lp::solvers::microlp::MicroLpSolution;
 use good_lp::{
     Expression, IntoAffineExpression, ProblemVariables, ResolutionError, Solution, SolverModel,
     Variable, VariableDefinition,
@@ -11,7 +12,9 @@ use snafu::prelude::*;
 
 use crate::domain::item::model::ItemId;
 use crate::domain::plan::model::{
-    CyclicPlanItemNode, NormalPlanItemNode, PartialPlanItemNode, Plan, PlanItemNode,
+    AggregatedPlanItemNode, CyclicPlanItemNode, CyclicPlanRecipeNode, NormalPlanItemNode,
+    NormalPlanRecipeNode, PartialPlanItemNode, PartialPlanRecipeNode, Plan, PlanItemNode,
+    PlanRecipeNode,
 };
 use crate::domain::recipe::model::{Flow, Recipe, RecipeId, Replica};
 use crate::domain::recipe::outbound::{DynRecipeRepository, RecipeRepository};
@@ -44,7 +47,7 @@ impl PlanFactoryImpl {
         let recipes = self.collect_related_recipes(goal).await?;
         let items = self.collect_related_items(&recipes);
         let solution = self.calc_raw_plan_solution(&recipes, &items, goal, flow_goal)?;
-        let plan = self.build_plan(&recipes, &solution, goal);
+        let plan = self.build_plan(&recipes, &solution, goal, flow_goal);
         Ok(plan)
     }
 
@@ -112,55 +115,55 @@ impl PlanFactoryImpl {
         items_res
     }
 
-    fn calc_raw_plan_solution(
+    fn calc_raw_plan_solution<'a>(
         &self,
-        recipes: &HashMap<RecipeId, Recipe>,
-        items: &HashSet<ItemId>,
+        recipes: &'a HashMap<RecipeId, Recipe>,
+        items: &'a HashSet<ItemId>,
         goal: &ItemId,
         flow_goal: Flow,
-    ) -> Result<RawPlanSolution, CreatePlanError> {
+    ) -> Result<RawPlanSolution<'a>, CreatePlanError> {
         let mut variables = ProblemVariables::new();
 
-        let recipe_replica_vars = recipes
+        let mut recipe_replica_vars = recipes
             .iter()
             .map(|(id, recipe)| {
                 let name = format!("recipe-replica@{}", recipe.id().value());
                 let var = variables.add(VariableDefinition::new().min(0).name(name));
-                (id.clone(), var)
+                (id, var)
             })
-            .collect::<HashMap<_, _>>();
+            .collect::<HashMap<&RecipeId, Variable>>();
 
         fn mapper(
             variables: &mut ProblemVariables,
             kind: &str,
-        ) -> impl FnMut(&ItemId) -> (ItemId, Variable) {
+        ) -> impl FnMut(&ItemId) -> (&ItemId, Variable) {
             move |id| {
                 let name = format!("item-{kind}-flow@{}", id.value());
                 let var = variables.add(VariableDefinition::new().min(0).name(name));
-                (id.clone(), var)
+                (id, var)
             }
         }
-        let item_production_flow_vars = items
+        let mut item_production_flow_vars = items
             .iter()
             .map(mapper(&mut variables, "production"))
-            .collect::<HashMap<_, _>>();
+            .collect::<HashMap<&ItemId, Variable>>();
         let item_consumption_flow_vars = items
             .iter()
             .map(mapper(&mut variables, "consumption"))
-            .collect::<HashMap<_, _>>();
+            .collect::<HashMap<&ItemId, Variable>>();
         let item_unused_flow_vars = items
             .iter()
             .map(mapper(&mut variables, "unused"))
-            .collect::<HashMap<_, _>>();
+            .collect::<HashMap<&ItemId, Variable>>();
 
         let mut item_production_flow_exprs = items
             .iter()
-            .map(|id| (id.clone(), Expression::default()))
-            .collect::<HashMap<_, _>>();
+            .map(|id| (id, Expression::default()))
+            .collect::<HashMap<&ItemId, Expression>>();
         let mut item_consumption_flow_exprs = items
             .iter()
-            .map(|id| (id.clone(), Expression::default()))
-            .collect::<HashMap<_, _>>();
+            .map(|id| (id, Expression::default()))
+            .collect::<HashMap<&ItemId, Expression>>();
 
         for recipe in recipes.values() {
             let replica = recipe_replica_vars.get(recipe.id()).unwrap();
@@ -184,7 +187,7 @@ impl PlanFactoryImpl {
         let objective = item_unused_flow_vars.values().sum::<Expression>()
             + recipe_replica_vars.values().sum::<Expression>();
 
-        let solution = variables
+        let values = variables
             .minimise(objective)
             .using(good_lp::default_solver)
             .with_all(items.iter().flat_map(|item| {
@@ -209,41 +212,17 @@ impl PlanFactoryImpl {
             .solve()
             .context(NoSolutionSnafu)?;
 
+        recipe_replica_vars
+            .extract_if(|_, var| approx::relative_eq!(values.value(*var), 0.0, epsilon = 1e-9))
+            .for_each(drop);
+        item_production_flow_vars
+            .extract_if(|_, var| approx::relative_eq!(values.value(*var), 0.0, epsilon = 1e-9))
+            .for_each(drop);
+
         Ok(RawPlanSolution {
-            recipe_replica: recipes
-                .keys()
-                .filter_map(|id| {
-                    let replica = solution.value(*recipe_replica_vars.get(id).unwrap());
-                    Replica::new(replica).ok().map(|r| (id.clone(), r))
-                })
-                .collect(),
-            item_production_flow: items
-                .iter()
-                .filter_map(|id| {
-                    let flow = solution.value(*item_production_flow_vars.get(id).unwrap());
-                    Flow::new(flow)
-                        .ok()
-                        .filter(|f| *f > Flow::zero())
-                        .map(|f| (id.clone(), f))
-                })
-                .collect(),
-            item_consumption_flow: items
-                .iter()
-                .filter_map(|id| {
-                    let flow = solution.value(*item_consumption_flow_vars.get(id).unwrap());
-                    Flow::new(flow)
-                        .ok()
-                        .filter(|f| *f > Flow::zero())
-                        .map(|f| (id.clone(), f))
-                })
-                .collect(),
-            item_unused_flow: items
-                .iter()
-                .filter_map(|id| {
-                    let flow = solution.value(*item_unused_flow_vars.get(id).unwrap());
-                    Flow::new(flow).ok().map(|f| (id.clone(), f))
-                })
-                .collect(),
+            values,
+            recipe_replica_vars,
+            item_production_flow_vars,
         })
     }
 
@@ -252,140 +231,331 @@ impl PlanFactoryImpl {
         recipes: &HashMap<RecipeId, Recipe>,
         solution: &RawPlanSolution,
         goal: &ItemId,
+        flow_goal: Flow,
     ) -> Plan {
         let mut item_producers = HashMap::new();
-        recipes
-            .values()
-            .filter(|recipe| solution.recipe_replica.contains_key(recipe.id()))
-            .for_each(|recipe| {
-                recipe.products().iter().for_each(|(item, _)| {
-                    let ps = item_producers.entry(item).or_insert(Vec::new());
-                    ps.push(recipe);
-                });
+        solution.recipe_replica_vars.keys().for_each(|id| {
+            let recipe = recipes.get(id).unwrap();
+            recipe.products().iter().for_each(|(item, _)| {
+                let ps = item_producers.entry(item).or_insert(Vec::new());
+                ps.push(recipe);
             });
-
-        let item_main_producers = item_producers
-            .into_iter()
-            .map(|(id, producers)| {
-                let has_unique_product = producers.iter().find(|p| p.products().len() == 1);
-                let otherwise_first = producers.first();
-                let main_producer = *has_unique_product.or(otherwise_first).unwrap();
-                (id, main_producer)
-            })
-            .collect::<HashMap<&ItemId, &Recipe>>();
+        });
 
         let context = BuildPlanContext {
-            recipes,
-            item_main_producers: &item_main_producers,
+            item_producers: &item_producers,
             solution,
         };
         let mut trace = Vec::new();
         let mut common_intermediates = HashMap::new();
+        let mut common_recipes = HashMap::new();
 
-        let goal = self.build_plan_recursive(&context, &mut trace, &mut common_intermediates, goal);
-        Plan::new(goal, common_intermediates)
+        let goal = self.build_plan_item_node(
+            &context,
+            &mut trace,
+            &mut common_intermediates,
+            &mut common_recipes,
+            goal,
+            flow_goal,
+        );
+        Plan::new(goal, common_intermediates, common_recipes)
     }
 
-    fn build_plan_recursive<'a>(
+    fn build_plan_item_node<'a>(
         &self,
         context: &BuildPlanContext<'a>,
         trace: &mut Vec<BuildPlanTrace<'a>>,
         common_intermediates: &mut HashMap<ItemId, PlanItemNode>,
+        common_recipes: &mut HashMap<RecipeId, PlanRecipeNode>,
         target: &'a ItemId,
+        flow_target: Flow,
     ) -> PlanItemNode {
-        let BuildPlanContext {
-            recipes,
-            item_main_producers,
-            solution,
-        } = context;
+        let current_len = trace.len();
+        if common_intermediates.contains_key(target) {
+            return PlanItemNode::Partial(
+                PartialPlanItemNode::builder()
+                    .target(target.clone())
+                    .flow_next(flow_target)
+                    .build()
+                    .unwrap(),
+            );
+        } else if let Some(frame) = trace.iter_mut().rfind(|frame| frame.is_item(target)) {
+            let BuildPlanTrace::Item { flow_cyclic, .. } = frame else {
+                unreachable!();
+            };
+            *flow_cyclic = *flow_cyclic + flow_target;
 
-        let recipe = recipes
-            .get(item_main_producers.get(target).unwrap().id())
-            .unwrap();
-        let rate = recipe.get_product_rate(target).unwrap();
-        let replica_all = *solution.recipe_replica.get(recipe.id()).unwrap();
+            let target_depth = frame.depth();
+            return PlanItemNode::Cyclic(
+                CyclicPlanItemNode::builder()
+                    .target(target.clone())
+                    .flow_next(flow_target)
+                    .from_steps_ahead(current_len - target_depth)
+                    .build()
+                    .unwrap(),
+            );
+        }
 
-        trace.push(BuildPlanTrace {
+        trace.push(BuildPlanTrace::Item {
             depth: trace.len(),
-            target,
-            main_producer: recipe,
+            item: target,
             flow_cyclic: Flow::zero(),
         });
 
-        let mut dependencies = Vec::new();
-        for (material, flow_material) in recipe.get_materials_flow(replica_all) {
-            let dependency =
-                if let Some(frame) = trace.iter_mut().rfind(|frame| frame.target == material) {
-                    frame.flow_cyclic = frame.flow_cyclic + flow_material;
-                    let prev_depth = frame.depth;
-                    PlanItemNode::Cyclic(
-                        CyclicPlanItemNode::builder()
-                            .target(material.clone())
-                            .flow_next(flow_material)
-                            .from_steps_ahead(trace.last().unwrap().depth - prev_depth + 1)
-                            .build()
-                            .unwrap(),
-                    )
-                } else if let Some(_) = common_intermediates.get(material) {
-                    PlanItemNode::Partial(
-                        PartialPlanItemNode::builder()
-                            .target(material.clone())
-                            .flow_next(flow_material)
-                            .build()
-                            .unwrap(),
-                    )
-                } else {
-                    let dependency =
-                        self.build_plan_recursive(context, trace, common_intermediates, material);
-                    if dependency.flow_next() > flow_material {
-                        let partial = PlanItemNode::Partial(
-                            PartialPlanItemNode::builder()
-                                .target(material.clone())
-                                .flow_next(flow_material)
-                                .build()
-                                .unwrap(),
-                        );
-                        common_intermediates.insert(material.clone(), dependency);
-                        partial
-                    } else {
-                        dependency
-                    }
-                };
-            dependencies.push(dependency);
+        let producers = context.item_producers.get(target).unwrap();
+        let node = if self.should_build_normal_plan_item_node(producers) {
+            self.build_normal_plan_item_node(
+                context,
+                trace,
+                common_intermediates,
+                common_recipes,
+                target,
+                flow_target,
+                producers.first().unwrap(),
+            )
+        } else {
+            self.build_aggregated_plan_item_node(
+                context,
+                trace,
+                common_intermediates,
+                common_recipes,
+                target,
+                flow_target,
+                &producers,
+            )
+        };
+
+        trace.pop();
+        node
+    }
+
+    fn should_build_normal_plan_item_node(&self, producers: &[&Recipe]) -> bool {
+        let unique_producer = producers.len() == 1;
+        let no_byproduct = producers.first().map_or(false, |p| p.products().len() == 1);
+        unique_producer && no_byproduct
+    }
+
+    fn build_normal_plan_item_node<'a>(
+        &self,
+        context: &BuildPlanContext<'a>,
+        trace: &mut Vec<BuildPlanTrace<'a>>,
+        common_intermediates: &mut HashMap<ItemId, PlanItemNode>,
+        common_recipes: &mut HashMap<RecipeId, PlanRecipeNode>,
+        target: &'a ItemId,
+        flow_target: Flow,
+        producer: &'a Recipe,
+    ) -> PlanItemNode {
+        let solution = context.solution;
+
+        let replica_var = *solution.recipe_replica_vars.get(producer.id()).unwrap();
+        let replica = Replica::new(solution.values.value(replica_var))
+            .expect("the remaining replica's value should be positive");
+
+        let flow_all_var = *solution.item_production_flow_vars.get(target).unwrap();
+        let flow_all = Flow::new(solution.values.value(flow_all_var))
+            .expect("the remaining item production flow's value should be positive");
+
+        let mut dependencies = Vec::with_capacity(producer.materials().len());
+        for (material, flow_material) in producer.get_materials_flow(replica) {
+            let node = self.build_plan_item_node(
+                context,
+                trace,
+                common_intermediates,
+                common_recipes,
+                material,
+                flow_material,
+            );
+            dependencies.push(node);
         }
 
-        let flow_extra = Flow::new(
-            solution.item_production_flow.get(target).unwrap().value()
-                - (rate * replica_all).value(),
-        )
-        .expect("total production flow shouldn't be less than main producer recipe's flow");
-
-        let flow_cyclic = trace.last().unwrap().flow_cyclic;
-        let (replica_next, replica_cyclic) = if flow_cyclic > flow_extra {
-            let flow_cyclic_from_main = Flow::new(flow_cyclic.value() - flow_extra.value())
-                .expect("`flow_cyclic` should be greater than `flow_extra`");
-            let replica_cyclic = flow_cyclic_from_main / rate;
-            let replica_next = Replica::new(replica_all.value() - replica_cyclic.value())
-                .expect("`replica_all` should be greater than `replica_cyclic`");
-            (replica_next, Some(replica_cyclic))
-        } else {
-            (replica_all, None)
+        let flow_cyclic = match trace.last() {
+            Some(BuildPlanTrace::Item { flow_cyclic, .. }) => *flow_cyclic,
+            _ => unreachable!("the last trace frame should be `BuildPlanTrace::Item`"),
         };
+        let flow_next = Flow::new(flow_all.value() - flow_cyclic.value())
+            .expect("`flow_all` should be greater than `flow_cyclic`");
 
         let node = PlanItemNode::Normal(
             NormalPlanItemNode::builder()
                 .target(target.clone())
-                .recipe(recipe.id().clone())
-                .rate(rate)
-                .replica_next(replica_next)
-                .replica_cyclic(replica_cyclic)
+                .recipe(producer.id().clone())
+                .flow_next(flow_next)
+                .flow_cyclic(flow_cyclic)
+                .replica(replica)
                 .dependencies(dependencies)
                 .build()
                 .unwrap(),
         );
+        if node.flow_next() > flow_target {
+            common_intermediates.insert(target.clone(), node);
+            PlanItemNode::Partial(
+                PartialPlanItemNode::builder()
+                    .target(target.clone())
+                    .flow_next(flow_target)
+                    .build()
+                    .unwrap(),
+            )
+        } else {
+            node
+        }
+    }
+
+    fn build_aggregated_plan_item_node<'a>(
+        &self,
+        context: &BuildPlanContext<'a>,
+        trace: &mut Vec<BuildPlanTrace<'a>>,
+        common_intermediates: &mut HashMap<ItemId, PlanItemNode>,
+        common_recipes: &mut HashMap<RecipeId, PlanRecipeNode>,
+        target: &'a ItemId,
+        flow_target: Flow,
+        producers: &[&'a Recipe],
+    ) -> PlanItemNode {
+        let solution = context.solution;
+
+        let flow_all_var = *solution.item_production_flow_vars.get(target).unwrap();
+        let flow_all = Flow::new(solution.values.value(flow_all_var))
+            .expect("the remaining item production flow's value should be positive");
+
+        let mut recipes = Vec::with_capacity(producers.len());
+        for producer in producers {
+            let node = self.build_plan_recipe_node(
+                context,
+                trace,
+                common_intermediates,
+                common_recipes,
+                producer,
+            );
+            recipes.push(node);
+        }
+
+        let flow_cyclic = match trace.last() {
+            Some(BuildPlanTrace::Item { flow_cyclic, .. }) => *flow_cyclic,
+            _ => unreachable!("the last trace frame should be `BuildPlanTrace::Item`"),
+        };
+        let flow_next = Flow::new(flow_all.value() - flow_cyclic.value())
+            .expect("`flow_all` should be greater than `flow_cyclic`");
+
+        let node = PlanItemNode::Aggregated(
+            AggregatedPlanItemNode::builder()
+                .target(target.clone())
+                .flow_next(flow_next)
+                .flow_cyclic(flow_cyclic)
+                .recipes(recipes)
+                .build()
+                .unwrap(),
+        );
+        if node.flow_next() > flow_target {
+            common_intermediates.insert(target.clone(), node);
+            PlanItemNode::Partial(
+                PartialPlanItemNode::builder()
+                    .target(target.clone())
+                    .flow_next(flow_target)
+                    .build()
+                    .unwrap(),
+            )
+        } else {
+            node
+        }
+    }
+
+    fn build_plan_recipe_node<'a>(
+        &self,
+        context: &BuildPlanContext<'a>,
+        trace: &mut Vec<BuildPlanTrace<'a>>,
+        common_intermediates: &mut HashMap<ItemId, PlanItemNode>,
+        common_recipes: &mut HashMap<RecipeId, PlanRecipeNode>,
+        producer: &'a Recipe,
+    ) -> PlanRecipeNode {
+        let current_len = trace.len();
+
+        let solution = context.solution;
+        let replica_var = *solution.recipe_replica_vars.get(producer.id()).unwrap();
+        let replica = Replica::new(solution.values.value(replica_var))
+            .expect("the remaining replica's value should be positive");
+
+        if common_recipes.contains_key(producer.id()) {
+            return PlanRecipeNode::Partial(
+                PartialPlanRecipeNode::builder()
+                    .recipe(producer.id().clone())
+                    .replica(replica)
+                    .build()
+                    .unwrap(),
+            );
+        } else if let Some(frame) = trace
+            .iter_mut()
+            .rfind(|frame| frame.is_recipe(producer.id()))
+        {
+            let recipe_depth = frame.depth();
+            return PlanRecipeNode::Cyclic(
+                CyclicPlanRecipeNode::builder()
+                    .recipe(producer.id().clone())
+                    .replica(replica)
+                    .from_steps_ahead(current_len - recipe_depth)
+                    .build()
+                    .unwrap(),
+            );
+        }
+
+        trace.push(BuildPlanTrace::Recipe {
+            depth: trace.len(),
+            recipe: producer.id(),
+        });
+
+        let node = self.build_normal_plan_recipe_node(
+            context,
+            trace,
+            common_intermediates,
+            common_recipes,
+            producer,
+            replica,
+        );
 
         trace.pop();
         node
+    }
+
+    fn build_normal_plan_recipe_node<'a>(
+        &self,
+        context: &BuildPlanContext<'a>,
+        trace: &mut Vec<BuildPlanTrace<'a>>,
+        common_intermediates: &mut HashMap<ItemId, PlanItemNode>,
+        common_recipes: &mut HashMap<RecipeId, PlanRecipeNode>,
+        producer: &'a Recipe,
+        replica: Replica,
+    ) -> PlanRecipeNode {
+        let mut materials = Vec::with_capacity(producer.materials().len());
+        for (material, flow_material) in producer.get_materials_flow(replica) {
+            let node = self.build_plan_item_node(
+                context,
+                trace,
+                common_intermediates,
+                common_recipes,
+                material,
+                flow_material,
+            );
+            materials.push(node);
+        }
+
+        let node = PlanRecipeNode::Normal(
+            NormalPlanRecipeNode::builder()
+                .recipe(producer.id().clone())
+                .replica(replica)
+                .materials(materials)
+                .build()
+                .unwrap(),
+        );
+        if producer.products().len() > 1 {
+            common_recipes.insert(producer.id().clone(), node);
+            PlanRecipeNode::Partial(
+                PartialPlanRecipeNode::builder()
+                    .recipe(producer.id().clone())
+                    .replica(replica)
+                    .build()
+                    .unwrap(),
+            )
+        } else {
+            node
+        }
     }
 }
 
@@ -414,27 +584,52 @@ pub enum CreatePlanError {
     },
 }
 
-#[derive(Debug, Clone, PartialEq)]
-struct RawPlanSolution {
-    recipe_replica: HashMap<RecipeId, Replica>,
-    item_production_flow: HashMap<ItemId, Flow>,
-    item_consumption_flow: HashMap<ItemId, Flow>,
-    item_unused_flow: HashMap<ItemId, Flow>,
+struct RawPlanSolution<'a> {
+    values: MicroLpSolution,
+    recipe_replica_vars: HashMap<&'a RecipeId, Variable>,
+    item_production_flow_vars: HashMap<&'a ItemId, Variable>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone)]
 struct BuildPlanContext<'a> {
-    recipes: &'a HashMap<RecipeId, Recipe>,
-    item_main_producers: &'a HashMap<&'a ItemId, &'a Recipe>,
-    solution: &'a RawPlanSolution,
+    item_producers: &'a HashMap<&'a ItemId, Vec<&'a Recipe>>,
+    solution: &'a RawPlanSolution<'a>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-struct BuildPlanTrace<'a> {
-    depth: usize,
-    target: &'a ItemId,
-    main_producer: &'a Recipe,
-    flow_cyclic: Flow,
+enum BuildPlanTrace<'a> {
+    Item {
+        depth: usize,
+        item: &'a ItemId,
+        flow_cyclic: Flow,
+    },
+    Recipe {
+        depth: usize,
+        recipe: &'a RecipeId,
+    },
+}
+
+impl<'a> BuildPlanTrace<'a> {
+    fn depth(&self) -> usize {
+        match self {
+            Self::Item { depth, .. } => *depth,
+            Self::Recipe { depth, .. } => *depth,
+        }
+    }
+
+    fn is_item(&self, id: &ItemId) -> bool {
+        match self {
+            Self::Item { item, .. } => *item == id,
+            _ => false,
+        }
+    }
+
+    fn is_recipe(&self, id: &RecipeId) -> bool {
+        match self {
+            Self::Recipe { recipe, .. } => *recipe == id,
+            _ => false,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -479,25 +674,25 @@ mod tests {
         let plan = factory.create_plan(&goal, flow_goal).await?;
 
         visit_node_normal(&plan, &["i1"], |variant| {
-            assert_eq!(variant.replica_next(), Replica::new(1.0).unwrap());
+            assert_eq!(variant.replica(), Replica::new(1.0).unwrap());
             assert_eq!(variant.flow_next(), Flow::new(6.0).unwrap());
         });
         visit_node_normal(&plan, &["i1", "i2"], |variant| {
-            assert_eq!(variant.replica_next(), Replica::new(2.0).unwrap());
+            assert_eq!(variant.replica(), Replica::new(2.0).unwrap());
             assert_eq!(variant.flow_next(), Flow::new(60.0).unwrap());
         });
         visit_node_partial(&plan, &["i1", "i2", "i4"], |variant| {
             assert_eq!(variant.flow_next(), Flow::new(120.0).unwrap());
         });
         visit_node_normal(&plan, &["i1", "i3"], |variant| {
-            assert_eq!(variant.replica_next(), Replica::new(1.0).unwrap());
+            assert_eq!(variant.replica(), Replica::new(1.0).unwrap());
             assert_eq!(variant.flow_next(), Flow::new(30.0).unwrap());
         });
         visit_node_partial(&plan, &["i1", "i3", "i4"], |variant| {
             assert_eq!(variant.flow_next(), Flow::new(30.0).unwrap());
         });
         visit_node_normal(&plan, &["i4"], |variant| {
-            assert_eq!(variant.replica_next(), Replica::new(2.5).unwrap());
+            assert_eq!(variant.replica(), Replica::new(2.5).unwrap());
             assert_eq!(variant.flow_next(), Flow::new(150.0).unwrap());
         });
 
@@ -518,12 +713,11 @@ mod tests {
         let plan = factory.create_plan(&goal, flow_goal).await?;
 
         visit_node_normal(&plan, &["i1"], |variant| {
-            assert_eq!(variant.replica_next(), Replica::new(0.5).unwrap());
-            assert_eq!(variant.replica_cyclic(), Some(Replica::new(0.5).unwrap()));
+            assert_eq!(variant.replica(), Replica::new(1.0).unwrap());
             assert_eq!(variant.flow_next(), Flow::new(60.0).unwrap());
         });
         visit_node_normal(&plan, &["i1", "i2"], |variant| {
-            assert_eq!(variant.replica_next(), Replica::new(1.0).unwrap());
+            assert_eq!(variant.replica(), Replica::new(1.0).unwrap());
             assert_eq!(variant.flow_next(), Flow::new(60.0).unwrap());
         });
         visit_node_cyclic(&plan, &["i1", "i2", "i1"], |variant| {

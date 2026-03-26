@@ -2,11 +2,13 @@ use derive_builder::Builder;
 use getset::{CopyGetters, Getters};
 
 use crate::domain::item::model::ItemId;
-use crate::domain::recipe::model::{Flow, Rate, RecipeId, Replica};
+use crate::domain::plan::model::PlanRecipeNode;
+use crate::domain::recipe::model::{Flow, RecipeId, Replica};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PlanItemNode {
     Normal(NormalPlanItemNode),
+    Aggregated(AggregatedPlanItemNode),
     Partial(PartialPlanItemNode),
     Cyclic(CyclicPlanItemNode),
 }
@@ -15,6 +17,7 @@ impl PlanItemNode {
     pub fn target(&self) -> &ItemId {
         match self {
             Self::Normal(variant) => variant.target(),
+            Self::Aggregated(variant) => variant.target(),
             Self::Partial(variant) => variant.target(),
             Self::Cyclic(variant) => variant.target(),
         }
@@ -23,6 +26,7 @@ impl PlanItemNode {
     pub fn flow_next(&self) -> Flow {
         match self {
             Self::Normal(variant) => variant.flow_next(),
+            Self::Aggregated(variant) => variant.flow_next(),
             Self::Partial(variant) => variant.flow_next(),
             Self::Cyclic(variant) => variant.flow_next(),
         }
@@ -30,10 +34,15 @@ impl PlanItemNode {
 
     pub fn get_dependency(&self, dependency: &ItemId) -> Option<&PlanItemNode> {
         if let Self::Normal(variant) = self {
-            variant
-                .dependencies()
-                .iter()
-                .find(|node| node.target() == dependency)
+            variant.get_dependency(dependency)
+        } else {
+            None
+        }
+    }
+
+    pub fn get_recipe(&self, recipe: &RecipeId) -> Option<&PlanRecipeNode> {
+        if let Self::Aggregated(variant) = self {
+            variant.get_recipe(recipe)
         } else {
             None
         }
@@ -47,11 +56,11 @@ pub struct NormalPlanItemNode {
     #[getset(get = "pub")]
     recipe: RecipeId,
     #[getset(get_copy = "pub")]
-    rate: Rate,
+    flow_next: Flow,
     #[getset(get_copy = "pub")]
-    replica_next: Replica,
+    flow_cyclic: Flow,
     #[getset(get_copy = "pub")]
-    replica_cyclic: Option<Replica>,
+    replica: Replica,
     #[getset(get = "pub")]
     dependencies: Vec<PlanItemNode>,
 }
@@ -61,8 +70,32 @@ impl NormalPlanItemNode {
         NormalPlanItemNodeBuilder::create_empty()
     }
 
-    pub fn flow_next(&self) -> Flow {
-        self.rate() * self.replica_next()
+    pub fn get_dependency(&self, dependency: &ItemId) -> Option<&PlanItemNode> {
+        self.dependencies
+            .iter()
+            .find(|node| node.target() == dependency)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Getters, CopyGetters, Builder)]
+pub struct AggregatedPlanItemNode {
+    #[getset(get = "pub")]
+    target: ItemId,
+    #[getset(get_copy = "pub")]
+    flow_next: Flow,
+    #[getset(get_copy = "pub")]
+    flow_cyclic: Flow,
+    #[getset(get = "pub")]
+    recipes: Vec<PlanRecipeNode>,
+}
+
+impl AggregatedPlanItemNode {
+    pub fn builder() -> AggregatedPlanItemNodeBuilder {
+        AggregatedPlanItemNodeBuilder::create_empty()
+    }
+
+    pub fn get_recipe(&self, recipe: &RecipeId) -> Option<&PlanRecipeNode> {
+        self.recipes.iter().find(|node| node.recipe() == recipe)
     }
 }
 
