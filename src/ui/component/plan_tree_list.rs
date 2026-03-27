@@ -1,17 +1,15 @@
 use ratatui::buffer::Buffer;
-use ratatui::crossterm::event::{Event, KeyCode};
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{List, ListItem, StatefulWidget, Widget};
-use tokio::sync::mpsc::Sender;
+use ratatui::widgets::{ListItem, Widget};
 
 use crate::application::query::plan::{PlanDetail, PlanDetailNode, PlanNodeKind};
 use crate::domain::machine::model::Power;
 use crate::domain::recipe::model::{Flow, Replica};
-use crate::infrastructure::util::component::Component;
+use crate::infrastructure::util::component::{Component, ListUtilComponent};
 use crate::infrastructure::util::state::State;
-use crate::ui::state::{PlanTabFocus, PlanTabState, PlanTreeListAction, PlanTreeListState};
+use crate::ui::state::{self, PlanTabState, PlanTreeListState};
 use crate::ui::style;
 
 const COLOR_MACHINE: Color = Color::Rgb(100, 149, 237);
@@ -21,42 +19,30 @@ const COLOR_PRODUCT: Color = Color::Rgb(64, 224, 208);
 const COLOR_KIND: Color = Color::Rgb(255, 140, 0);
 
 pub struct PlanTreeListComponent {
-    plan_tree_list_requester: Sender<PlanTreeListAction>,
-    plan_tree_list_state: State<PlanTreeListState>,
-    plan_tab_state: State<PlanTabState>,
+    list: ListUtilComponent,
 }
 
 impl PlanTreeListComponent {
     pub fn new(
-        plan_tree_list_requester: Sender<PlanTreeListAction>,
         plan_tree_list_state: State<PlanTreeListState>,
         plan_tab_state: State<PlanTabState>,
     ) -> Self {
-        Self {
-            plan_tree_list_requester,
-            plan_tree_list_state,
-            plan_tab_state,
-        }
+        let list = ListUtilComponent::new(
+            |_| {},
+            create_plan_tree_list_items(plan_tree_list_state),
+            state::create_plan_tree_list_is_focused(plan_tab_state),
+            || " Plan Tree ".to_string(),
+            style::block_with_focused,
+            style::highlight_with_focused,
+        );
+
+        Self { list }
     }
 }
 
 impl Component for PlanTreeListComponent {
-    fn handle_input(&self, input: &Event) {
-        if let Event::Key(key) = input {
-            match key.code {
-                KeyCode::Down | KeyCode::Char('j') => {
-                    let _ = self
-                        .plan_tree_list_requester
-                        .try_send(PlanTreeListAction::SelectNext);
-                }
-                KeyCode::Up | KeyCode::Char('k') => {
-                    let _ = self
-                        .plan_tree_list_requester
-                        .try_send(PlanTreeListAction::SelectPrevious);
-                }
-                _ => {}
-            }
-        }
+    fn handle_input(&self, input: &ratatui::crossterm::event::Event) {
+        self.list.handle_input(input);
     }
 }
 
@@ -65,28 +51,21 @@ impl Widget for &PlanTreeListComponent {
     where
         Self: Sized,
     {
-        let plan_tree_list_state = self.plan_tree_list_state.get();
-        let plan_detail = plan_tree_list_state.plan_detail();
-        let mut list_state = plan_tree_list_state.list_state();
+        self.list.render(area, buf);
+    }
+}
 
-        let plan_tab_state = self.plan_tab_state.get();
-        let is_focused = plan_tab_state.focus() == PlanTabFocus::PlanTreeList;
-
-        let list_items = plan_detail.as_ref().map_or(vec![], |plan| {
+fn create_plan_tree_list_items(
+    plan_tree_list_state: State<PlanTreeListState>,
+) -> impl Fn() -> Vec<ListItem<'static>> + Send + Sync + 'static {
+    move || {
+        let state = plan_tree_list_state.get();
+        let plan_detail = state.plan_detail();
+        plan_detail.as_ref().map_or(vec![], |plan| {
             let mut items = vec![];
             flatten_plan_detail(plan, &mut items);
             items
-        });
-
-        let list = List::new(list_items)
-            .block(style::block_with_focused(is_focused).title(" Plan Tree "))
-            .highlight_style(style::highlight_with_focused(is_focused));
-
-        StatefulWidget::render(list, area, buf, &mut list_state);
-
-        let _ = self
-            .plan_tree_list_requester
-            .try_send(PlanTreeListAction::SetListState(list_state));
+        })
     }
 }
 

@@ -19,5 +19,7 @@ pub use goal_item_search_list::{
     create_goal_item_search_list_is_focused, create_goal_item_search_list_on_select,
 };
 pub use plan_tab::{PlanTabAction, PlanTabFocus, PlanTabState, PlanTabStateManager};
-pub use plan_tree_list::{PlanTreeListAction, PlanTreeListState, PlanTreeListStateManager};
+pub use plan_tree_list::{
+    PlanTreeListState, PlanTreeListStateManager, create_plan_tree_list_is_focused,
+};
 pub use status_bar::{StatusBarState, StatusBarStateManager};
