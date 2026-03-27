@@ -245,36 +245,29 @@ impl PlanFactoryImpl {
             producers.sort_by(|a, b| a.id().cmp(b.id()));
         });
 
-        let context = BuildPlanContext {
+        let mut context = BuildPlanContext {
             item_producers: &item_producers,
             solution,
+            trace: Vec::new(),
         };
-        let mut trace = Vec::new();
-        let mut common_intermediates = BTreeMap::new();
-        let mut common_recipes = BTreeMap::new();
+        let mut output = BuildPlanOutput {
+            common_intermediates: BTreeMap::new(),
+            common_recipes: BTreeMap::new(),
+        };
 
-        let goal = self.build_plan_item_node(
-            &context,
-            &mut trace,
-            &mut common_intermediates,
-            &mut common_recipes,
-            goal,
-            flow_goal,
-        );
-        Plan::new(goal, common_intermediates, common_recipes)
+        let goal = self.build_plan_item_node(&mut context, &mut output, goal, flow_goal);
+        Plan::new(goal, output.common_intermediates, output.common_recipes)
     }
 
     fn build_plan_item_node<'a>(
         &self,
-        context: &BuildPlanContext<'a>,
-        trace: &mut Vec<BuildPlanTrace<'a>>,
-        common_intermediates: &mut BTreeMap<ItemId, PlanItemNode>,
-        common_recipes: &mut BTreeMap<RecipeId, PlanRecipeNode>,
+        context: &mut BuildPlanContext<'a>,
+        output: &mut BuildPlanOutput,
         target: &'a ItemId,
         flow_target: Flow,
     ) -> PlanItemNode {
-        let current_len = trace.len();
-        if common_intermediates.contains_key(target) {
+        let current_len = context.trace.len();
+        if output.common_intermediates.contains_key(target) {
             return PlanItemNode::Partial(
                 PartialPlanItemNode::builder()
                     .target(target.clone())
@@ -282,7 +275,7 @@ impl PlanFactoryImpl {
                     .build()
                     .unwrap(),
             );
-        } else if let Some(frame) = trace.iter_mut().rfind(|frame| frame.is_item(target)) {
+        } else if let Some(frame) = context.trace.iter_mut().rfind(|frame| frame.is_item(target)) {
             let BuildPlanTrace::Item { flow_cyclic, .. } = frame else {
                 unreachable!();
             };
@@ -299,8 +292,8 @@ impl PlanFactoryImpl {
             );
         }
 
-        trace.push(BuildPlanTrace::Item {
-            depth: trace.len(),
+        context.trace.push(BuildPlanTrace::Item {
+            depth: context.trace.len(),
             item: target,
             flow_cyclic: Flow::zero(),
         });
@@ -309,9 +302,7 @@ impl PlanFactoryImpl {
         let node = if self.should_build_normal_plan_item_node(producers) {
             self.build_normal_plan_item_node(
                 context,
-                trace,
-                common_intermediates,
-                common_recipes,
+                output,
                 target,
                 flow_target,
                 producers.first().unwrap(),
@@ -319,31 +310,27 @@ impl PlanFactoryImpl {
         } else {
             self.build_aggregated_plan_item_node(
                 context,
-                trace,
-                common_intermediates,
-                common_recipes,
+                output,
                 target,
                 flow_target,
-                &producers,
+                producers,
             )
         };
 
-        trace.pop();
+        context.trace.pop();
         node
     }
 
     fn should_build_normal_plan_item_node(&self, producers: &[&Recipe]) -> bool {
         let unique_producer = producers.len() == 1;
-        let no_byproduct = producers.first().map_or(false, |p| p.products().len() == 1);
+        let no_byproduct = producers.first().is_some_and(|p| p.products().len() == 1);
         unique_producer && no_byproduct
     }
 
     fn build_normal_plan_item_node<'a>(
         &self,
-        context: &BuildPlanContext<'a>,
-        trace: &mut Vec<BuildPlanTrace<'a>>,
-        common_intermediates: &mut BTreeMap<ItemId, PlanItemNode>,
-        common_recipes: &mut BTreeMap<RecipeId, PlanRecipeNode>,
+        context: &mut BuildPlanContext<'a>,
+        output: &mut BuildPlanOutput,
         target: &'a ItemId,
         flow_target: Flow,
         producer: &'a Recipe,
@@ -360,18 +347,11 @@ impl PlanFactoryImpl {
 
         let mut dependencies = Vec::with_capacity(producer.materials().len());
         for (material, flow_material) in producer.get_materials_flow(replica) {
-            let node = self.build_plan_item_node(
-                context,
-                trace,
-                common_intermediates,
-                common_recipes,
-                material,
-                flow_material,
-            );
+            let node = self.build_plan_item_node(context, output, material, flow_material);
             dependencies.push(node);
         }
 
-        let flow_cyclic = match trace.last() {
+        let flow_cyclic = match context.trace.last() {
             Some(BuildPlanTrace::Item { flow_cyclic, .. }) => *flow_cyclic,
             _ => unreachable!("the last trace frame should be `BuildPlanTrace::Item`"),
         };
@@ -390,7 +370,7 @@ impl PlanFactoryImpl {
                 .unwrap(),
         );
         if node.flow_next() > flow_target {
-            common_intermediates.insert(target.clone(), node);
+            output.common_intermediates.insert(target.clone(), node);
             PlanItemNode::Partial(
                 PartialPlanItemNode::builder()
                     .target(target.clone())
@@ -405,10 +385,8 @@ impl PlanFactoryImpl {
 
     fn build_aggregated_plan_item_node<'a>(
         &self,
-        context: &BuildPlanContext<'a>,
-        trace: &mut Vec<BuildPlanTrace<'a>>,
-        common_intermediates: &mut BTreeMap<ItemId, PlanItemNode>,
-        common_recipes: &mut BTreeMap<RecipeId, PlanRecipeNode>,
+        context: &mut BuildPlanContext<'a>,
+        output: &mut BuildPlanOutput,
         target: &'a ItemId,
         flow_target: Flow,
         producers: &[&'a Recipe],
@@ -421,17 +399,11 @@ impl PlanFactoryImpl {
 
         let mut recipes = Vec::with_capacity(producers.len());
         for producer in producers {
-            let node = self.build_plan_recipe_node(
-                context,
-                trace,
-                common_intermediates,
-                common_recipes,
-                producer,
-            );
+            let node = self.build_plan_recipe_node(context, output, producer);
             recipes.push(node);
         }
 
-        let flow_cyclic = match trace.last() {
+        let flow_cyclic = match context.trace.last() {
             Some(BuildPlanTrace::Item { flow_cyclic, .. }) => *flow_cyclic,
             _ => unreachable!("the last trace frame should be `BuildPlanTrace::Item`"),
         };
@@ -448,7 +420,7 @@ impl PlanFactoryImpl {
                 .unwrap(),
         );
         if node.flow_next() > flow_target {
-            common_intermediates.insert(target.clone(), node);
+            output.common_intermediates.insert(target.clone(), node);
             PlanItemNode::Partial(
                 PartialPlanItemNode::builder()
                     .target(target.clone())
@@ -463,20 +435,18 @@ impl PlanFactoryImpl {
 
     fn build_plan_recipe_node<'a>(
         &self,
-        context: &BuildPlanContext<'a>,
-        trace: &mut Vec<BuildPlanTrace<'a>>,
-        common_intermediates: &mut BTreeMap<ItemId, PlanItemNode>,
-        common_recipes: &mut BTreeMap<RecipeId, PlanRecipeNode>,
+        context: &mut BuildPlanContext<'a>,
+        output: &mut BuildPlanOutput,
         producer: &'a Recipe,
     ) -> PlanRecipeNode {
-        let current_len = trace.len();
+        let current_len = context.trace.len();
 
         let solution = context.solution;
         let replica_var = *solution.recipe_replica_vars.get(producer.id()).unwrap();
         let replica = Replica::new(solution.values.value(replica_var))
             .expect("the remaining replica's value should be positive");
 
-        if common_recipes.contains_key(producer.id()) {
+        if output.common_recipes.contains_key(producer.id()) {
             return PlanRecipeNode::Partial(
                 PartialPlanRecipeNode::builder()
                     .recipe(producer.id().clone())
@@ -484,7 +454,8 @@ impl PlanFactoryImpl {
                     .build()
                     .unwrap(),
             );
-        } else if let Some(frame) = trace
+        } else if let Some(frame) = context
+            .trace
             .iter_mut()
             .rfind(|frame| frame.is_recipe(producer.id()))
         {
@@ -499,43 +470,27 @@ impl PlanFactoryImpl {
             );
         }
 
-        trace.push(BuildPlanTrace::Recipe {
-            depth: trace.len(),
+        context.trace.push(BuildPlanTrace::Recipe {
+            depth: context.trace.len(),
             recipe: producer.id(),
         });
 
-        let node = self.build_normal_plan_recipe_node(
-            context,
-            trace,
-            common_intermediates,
-            common_recipes,
-            producer,
-            replica,
-        );
+        let node = self.build_normal_plan_recipe_node(context, output, producer, replica);
 
-        trace.pop();
+        context.trace.pop();
         node
     }
 
     fn build_normal_plan_recipe_node<'a>(
         &self,
-        context: &BuildPlanContext<'a>,
-        trace: &mut Vec<BuildPlanTrace<'a>>,
-        common_intermediates: &mut BTreeMap<ItemId, PlanItemNode>,
-        common_recipes: &mut BTreeMap<RecipeId, PlanRecipeNode>,
+        context: &mut BuildPlanContext<'a>,
+        output: &mut BuildPlanOutput,
         producer: &'a Recipe,
         replica: Replica,
     ) -> PlanRecipeNode {
         let mut materials = Vec::with_capacity(producer.materials().len());
         for (material, flow_material) in producer.get_materials_flow(replica) {
-            let node = self.build_plan_item_node(
-                context,
-                trace,
-                common_intermediates,
-                common_recipes,
-                material,
-                flow_material,
-            );
+            let node = self.build_plan_item_node(context, output, material, flow_material);
             materials.push(node);
         }
 
@@ -548,7 +503,7 @@ impl PlanFactoryImpl {
                 .unwrap(),
         );
         if producer.products().len() > 1 {
-            common_recipes.insert(producer.id().clone(), node);
+            output.common_recipes.insert(producer.id().clone(), node);
             PlanRecipeNode::Partial(
                 PartialPlanRecipeNode::builder()
                     .recipe(producer.id().clone())
@@ -593,10 +548,15 @@ struct RawPlanSolution<'a> {
     item_production_flow_vars: HashMap<&'a ItemId, Variable>,
 }
 
-#[derive(Clone)]
 struct BuildPlanContext<'a> {
     item_producers: &'a HashMap<&'a ItemId, Vec<&'a Recipe>>,
     solution: &'a RawPlanSolution<'a>,
+    trace: Vec<BuildPlanTrace<'a>>,
+}
+
+struct BuildPlanOutput {
+    common_intermediates: BTreeMap<ItemId, PlanItemNode>,
+    common_recipes: BTreeMap<RecipeId, PlanRecipeNode>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

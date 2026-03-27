@@ -78,9 +78,9 @@ pub enum PlanDetailNode {
 impl PlanDetailNode {
     pub fn children(&self) -> &[PlanDetailNode] {
         match self {
-            Self::Combined { children, .. } => &children,
-            Self::Target { children, .. } => &children,
-            Self::Recipe { children, .. } => &children,
+            Self::Combined { children, .. } => children,
+            Self::Target { children, .. } => children,
+            Self::Recipe { children, .. } => children,
         }
     }
 
