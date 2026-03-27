@@ -1,37 +1,30 @@
 use std::sync::Arc;
 
-use getset::{CopyGetters, Getters};
-use ratatui::widgets::ListState;
+use getset::Getters;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
 use crate::application::query::item::{DynItemQueryService, ItemQueryService, SearchItemsError};
 use crate::domain::item::model::Item;
 use crate::infrastructure::util::state::{State, StateManager, StateManagerContext, StateSource};
-use crate::ui::state::{AppAction, GoalItemSearchState, PlanTabAction, StatusLevel};
+use crate::ui::state::{AppAction, GoalItemSearchState, PlanTabAction, PlanTabFocus, PlanTabState, StatusLevel};
 
-#[derive(Debug, Clone, PartialEq, Eq, Getters, CopyGetters)]
+#[derive(Debug, Clone, PartialEq, Eq, Getters)]
 pub struct GoalItemSearchListState {
     #[getset(get = "pub")]
     filtered_items: Vec<Item>,
-    #[getset(get_copy = "pub")]
-    list_state: ListState,
 }
 
 impl Default for GoalItemSearchListState {
     fn default() -> Self {
         Self {
             filtered_items: Vec::new(),
-            list_state: ListState::default().with_selected(Some(0)),
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GoalItemSearchListAction {
-    SelectNext,
-    SelectPrevious,
-    ConfirmSelection,
-    SetListState(ListState),
+    ConfirmSelection(usize),
 }
 
 #[derive(Debug)]
@@ -75,38 +68,15 @@ impl GoalItemSearchListStateManager {
 
     fn handle_action(&mut self, action: GoalItemSearchListAction) {
         match action {
-            GoalItemSearchListAction::SelectNext => {
-                self.handle_action_select_next();
-            }
-            GoalItemSearchListAction::SelectPrevious => {
-                self.handle_action_select_previous();
-            }
-            GoalItemSearchListAction::ConfirmSelection => {
-                self.handle_action_confirm_selection();
-            }
-            GoalItemSearchListAction::SetListState(list_state) => {
-                self.handle_action_set_list_state(list_state);
+            GoalItemSearchListAction::ConfirmSelection(index) => {
+                self.handle_action_confirm_selection(index);
             }
         }
     }
 
-    fn handle_action_select_next(&mut self) {
-        let mut state = self.source.get().clone();
-        state.list_state.select_next();
-        self.source.set(state);
-    }
-
-    fn handle_action_select_previous(&mut self) {
-        let mut state = self.source.get().clone();
-        state.list_state.select_previous();
-        self.source.set(state);
-    }
-
-    fn handle_action_confirm_selection(&mut self) {
+    fn handle_action_confirm_selection(&mut self, index: usize) {
         let state = self.source.get();
-        if let Some(index) = state.list_state.selected()
-            && let Some(item) = state.filtered_items().get(index)
-        {
+        if let Some(item) = state.filtered_items().get(index) {
             let _ = self
                 .plan_tab_requester
                 .try_send(PlanTabAction::UpdateExpectedGoalItem(item.clone()));
@@ -114,13 +84,6 @@ impl GoalItemSearchListStateManager {
                 .plan_tab_requester
                 .try_send(PlanTabAction::SwitchFocusToNext);
         }
-    }
-
-    fn handle_action_set_list_state(&mut self, list_state: ListState) {
-        self.source.modify(|state| GoalItemSearchListState {
-            list_state,
-            ..state.clone()
-        });
     }
 
     fn handle_response(&mut self, response: GoalItemSearchListResponse) {
@@ -139,7 +102,6 @@ impl GoalItemSearchListStateManager {
             Ok(filtered_items) => {
                 self.source.modify(|state| GoalItemSearchListState {
                     filtered_items,
-                    list_state: ListState::default().with_selected(Some(0)),
                     ..state.clone()
                 });
             }
@@ -196,4 +158,18 @@ impl StateManager for GoalItemSearchListStateManager {
             }
         });
     }
+}
+
+pub fn create_goal_item_search_list_on_select(
+    requester: Sender<GoalItemSearchListAction>,
+) -> impl FnMut(usize) + Send + Sync + 'static {
+    move |index| {
+        let _ = requester.try_send(GoalItemSearchListAction::ConfirmSelection(index));
+    }
+}
+
+pub fn create_goal_item_search_list_is_focused(
+    plan_tab_state: State<PlanTabState>,
+) -> impl Fn() -> bool + Send + Sync + 'static {
+    move || plan_tab_state.get().focus() == PlanTabFocus::GoalItemSearchList
 }
