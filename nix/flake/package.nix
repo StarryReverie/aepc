@@ -29,5 +29,7 @@
 
         rust-toolchain = pkgs.rust-bin.fromRustupToolchainFile ./../../rust-toolchain.toml;
       };
+
+      legacyPackages = config.packages;
     };
 }
