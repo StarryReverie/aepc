@@ -89,8 +89,8 @@ impl Widget for &ListUtilComponent {
 mod tests {
     use std::sync::{Arc, Mutex};
 
-    use ratatui::backend::TestBackend;
     use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
 
     use super::*;
 

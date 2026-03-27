@@ -6,7 +6,9 @@ use tokio::sync::mpsc::{self, Receiver, Sender};
 use crate::application::query::item::{DynItemQueryService, ItemQueryService, SearchItemsError};
 use crate::domain::item::model::Item;
 use crate::infrastructure::util::state::{State, StateManager, StateManagerContext, StateSource};
-use crate::ui::state::{AppAction, GoalItemSearchState, PlanTabAction, PlanTabFocus, PlanTabState, StatusLevel};
+use crate::ui::state::{
+    AppAction, GoalItemSearchState, PlanTabAction, PlanTabFocus, PlanTabState, StatusLevel,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Getters)]
 pub struct GoalItemSearchListState {

@@ -2,8 +2,7 @@ mod query_plan;
 mod service;
 
 pub use query_plan::{
-    PlanDetail, PlanDetailNode, PlanNodeKind, QueryPlanError, QueryPlanRequest,
-    QueryPlanResponse,
+    PlanDetail, PlanDetailNode, PlanNodeKind, QueryPlanError, QueryPlanRequest, QueryPlanResponse,
 };
 pub use service::{DynPlanQueryService, PlanQueryService, PlanQueryServiceImpl};
 
