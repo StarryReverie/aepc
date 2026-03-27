@@ -2,7 +2,7 @@ use anyhow::Result as AnyhowResult;
 use futures::StreamExt;
 use ratatui::Terminal;
 use ratatui::backend::Backend;
-use ratatui::crossterm::event::EventStream;
+use ratatui::crossterm::event::{Event, EventStream, KeyEventKind};
 use tokio::time::Duration;
 
 use aepc::application::query::item::{DynItemQueryService, ItemQueryServiceImpl};
@@ -36,6 +36,9 @@ where
     loop {
         tokio::select! {
             Some(Ok(input)) = event.next() => {
+                if matches!(input, Event::Key(key) if key.kind == KeyEventKind::Release) {
+                    continue;
+                }
                 app.handle_input(&input);
             }
             Ok(app_state) = app_state.watch() => {
@@ -45,6 +48,7 @@ where
             }
             _ = tokio::time::sleep(Duration::from_millis(100)) => {}
         }
+        tokio::time::sleep(Duration::from_micros(10)).await;
         terminal.draw(|frame| {
             frame.render_widget(&app, frame.area());
         })?;
