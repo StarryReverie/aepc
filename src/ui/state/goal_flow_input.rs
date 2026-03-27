@@ -1,9 +1,16 @@
 use tokio::sync::mpsc::Sender;
 
 use crate::domain::recipe::model::Flow;
-use crate::ui::state::{AppAction, PlanTabAction, StatusLevel};
+use crate::infrastructure::util::state::State;
+use crate::ui::state::{AppAction, PlanTabAction, PlanTabFocus, PlanTabState, StatusLevel};
 
-pub fn create_goal_flow_on_confirm(
+pub fn create_goal_flow_input_is_focused(
+    plan_tab_state: State<PlanTabState>,
+) -> impl Fn() -> bool + Send + Sync + 'static {
+    move || plan_tab_state.get().focus() == PlanTabFocus::GoalFlowInput
+}
+
+pub fn create_goal_flow_input_on_confirm(
     plan_tab_requester: Sender<PlanTabAction>,
     app_requester: Sender<AppAction>,
 ) -> impl FnMut(&str) + Send + 'static {
@@ -45,7 +52,7 @@ mod tests {
         let (app_requester, mut app_actions) = mpsc::channel(32);
 
         let mut on_confirm =
-            create_goal_flow_on_confirm(plan_tab_requester.clone(), app_requester.clone());
+            create_goal_flow_input_on_confirm(plan_tab_requester.clone(), app_requester.clone());
 
         on_confirm("10.5");
 
@@ -68,7 +75,7 @@ mod tests {
         let (app_requester, mut app_actions) = mpsc::channel(32);
 
         let mut on_confirm =
-            create_goal_flow_on_confirm(plan_tab_requester.clone(), app_requester.clone());
+            create_goal_flow_input_on_confirm(plan_tab_requester.clone(), app_requester.clone());
 
         on_confirm("-10.5");
 
@@ -90,7 +97,7 @@ mod tests {
         let (app_requester, mut app_actions) = mpsc::channel(32);
 
         let mut on_confirm =
-            create_goal_flow_on_confirm(plan_tab_requester.clone(), app_requester.clone());
+            create_goal_flow_input_on_confirm(plan_tab_requester.clone(), app_requester.clone());
 
         on_confirm("");
 
@@ -112,7 +119,7 @@ mod tests {
         let (app_requester, mut app_actions) = mpsc::channel(32);
 
         let mut on_confirm =
-            create_goal_flow_on_confirm(plan_tab_requester.clone(), app_requester.clone());
+            create_goal_flow_input_on_confirm(plan_tab_requester.clone(), app_requester.clone());
 
         on_confirm("abc");
 

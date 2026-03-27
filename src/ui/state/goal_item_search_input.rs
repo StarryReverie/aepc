@@ -1,6 +1,13 @@
 use tokio::sync::mpsc::Sender;
 
-use crate::ui::state::{GoalItemSearchAction, PlanTabAction};
+use crate::infrastructure::util::state::State;
+use crate::ui::state::{GoalItemSearchAction, PlanTabAction, PlanTabFocus, PlanTabState};
+
+pub fn create_goal_item_search_input_is_focused(
+    plan_tab_state: State<PlanTabState>,
+) -> impl Fn() -> bool + Send + Sync + 'static {
+    move || plan_tab_state.get().focus() == PlanTabFocus::GoalItemSearchInput
+}
 
 pub fn create_goal_item_search_input_on_confirm(
     plan_tab_requester: Sender<PlanTabAction>,

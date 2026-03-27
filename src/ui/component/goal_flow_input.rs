@@ -6,7 +6,7 @@ use tokio::sync::mpsc::Sender;
 
 use crate::infrastructure::util::component::{Component, TextInputUtilComponent};
 use crate::infrastructure::util::state::State;
-use crate::ui::state::{self, AppAction, PlanTabAction, PlanTabFocus, PlanTabState};
+use crate::ui::state::{self, AppAction, PlanTabAction, PlanTabState};
 use crate::ui::style;
 
 pub struct GoalFlowInputComponent {
@@ -21,9 +21,9 @@ impl GoalFlowInputComponent {
     ) -> Self {
         let text_input = TextInputUtilComponent::new(
             |c| c.is_ascii_digit() || c == '.',
-            state::create_goal_flow_on_confirm(plan_tab_requester, app_requester),
+            state::create_goal_flow_input_on_confirm(plan_tab_requester, app_requester),
             |_| {},
-            move || plan_tab_state.get().focus() == PlanTabFocus::GoalFlowInput,
+            state::create_goal_flow_input_is_focused(plan_tab_state),
             || " Expected Flow (items/min) ".to_string(),
             style::block_with_focused,
         );

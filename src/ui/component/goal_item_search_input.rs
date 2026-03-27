@@ -6,7 +6,7 @@ use tokio::sync::mpsc::Sender;
 
 use crate::infrastructure::util::component::{Component, TextInputUtilComponent};
 use crate::infrastructure::util::state::State;
-use crate::ui::state::{self, GoalItemSearchAction, PlanTabAction, PlanTabFocus, PlanTabState};
+use crate::ui::state::{self, GoalItemSearchAction, PlanTabAction, PlanTabState};
 use crate::ui::style;
 
 pub struct GoalItemSearchInputComponent {
@@ -23,7 +23,7 @@ impl GoalItemSearchInputComponent {
             |_| true,
             state::create_goal_item_search_input_on_confirm(plan_tab_requester),
             state::create_goal_item_search_input_on_update(goal_item_search_requester),
-            move || plan_tab_state.get().focus() == PlanTabFocus::GoalItemSearchInput,
+            state::create_goal_item_search_input_is_focused(plan_tab_state),
             || " Expected Item Search ".to_string(),
             style::block_with_focused,
         );
