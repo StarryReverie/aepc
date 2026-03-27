@@ -1,5 +1,7 @@
+mod list;
 mod text_input;
 
+pub use list::ListUtilComponent;
 pub use text_input::TextInputUtilComponent;
 
 use ratatui::crossterm::event::Event;
