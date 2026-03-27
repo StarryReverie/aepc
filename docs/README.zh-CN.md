@@ -76,6 +76,22 @@ nix-build . -A packages.<system>.aepc
 }
 ```
 
+为避免本地构建，可将 [garnix.io](https://garnix.io) 添加为 substituter：
+
+```nix
+# configuration.nix
+{ pkgs, inputs, ... }:
+{
+  environment.systemPackages = [
+    inputs.aepc.packages.${pkgs.stdenv.hostPlatform.system}.aepc
+  ];
+
+  # 可选，将以下 substituter 配置与已有的合并
+  nix.settings.substituters = [ "https://cache.garnix.io" ];
+  nix.settings.trusted-public-keys = [ "cache.garnix.io:CTFPyKSLcx5RMJKfLo5EEPUObbA78b0YQ2DTCJXqr9g=" ];
+}
+```
+
 ## 许可证
 
 本项目的源代码基于 [GPL-3.0-or-later](/LICENSE) 许可证授权，嵌入游戏数据的部分除外。

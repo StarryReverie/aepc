@@ -73,6 +73,25 @@ Add the application exported by this flake to your NixOS configuration:
   environment.systemPackages = [
     inputs.aepc.packages.${pkgs.stdenv.hostPlatform.system}.aepc
   ];
+
+  # Optional, merge the following lines with your existing configurations
+  nix.settings.substituters = [ "https://cache.garnix.io" ];
+  nix.settings.trusted-public-keys = [ "cache.garnix.io:CTFPyKSLcx5RMJKfLo5EEPUObbA78b0YQ2DTCJXqr9g=" ];
+}
+```
+
+To avoid building locally, add [garnix.io](https://garnix.io) as a substituter:
+
+```nix
+# configuration.nix
+{ pkgs, inputs, ... }:
+{
+  nix.settings.substituters = [ "https://cache.garnix.io" ];
+  nix.settings.trusted-public-keys = [ "cache.garnix.io:CTAFy1dD+zsR3d+Cc32+Rz2m1/rg3oC+jhSFBzV3Y6c=" ];
+
+  environment.systemPackages = [
+    inputs.aepc.packages.${pkgs.stdenv.hostPlatform.system}.aepc
+  ];
 }
 ```
 
