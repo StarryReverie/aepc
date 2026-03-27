@@ -80,21 +80,6 @@ Add the application exported by this flake to your NixOS configuration:
 }
 ```
 
-To avoid building locally, add [garnix.io](https://garnix.io) as a substituter:
-
-```nix
-# configuration.nix
-{ pkgs, inputs, ... }:
-{
-  nix.settings.substituters = [ "https://cache.garnix.io" ];
-  nix.settings.trusted-public-keys = [ "cache.garnix.io:CTAFy1dD+zsR3d+Cc32+Rz2m1/rg3oC+jhSFBzV3Y6c=" ];
-
-  environment.systemPackages = [
-    inputs.aepc.packages.${pkgs.stdenv.hostPlatform.system}.aepc
-  ];
-}
-```
-
 ## License
 
 The source code of this project is licensed under [GPL-3.0-or-later](/LICENSE), except the portion that embeds the game data.

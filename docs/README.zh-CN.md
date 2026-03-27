@@ -61,24 +61,6 @@ nix-build . -A packages.<system>.aepc
 将本 Flake 提供的应用程序添加到 NixOS 配置中：
 
 ```nix
-# flake.nix
-{
-  inputs.aepc.url = "github:starryreverie/aepc";
-  # ...
-}
-
-# configuration.nix
-{ pkgs, inputs, ... }:
-{
-  environment.systemPackages = [
-    inputs.aepc.packages.${pkgs.stdenv.hostPlatform.system}.aepc
-  ];
-}
-```
-
-为避免本地构建，可将 [garnix.io](https://garnix.io) 添加为 substituter：
-
-```nix
 # configuration.nix
 { pkgs, inputs, ... }:
 {
