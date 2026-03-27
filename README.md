@@ -1,8 +1,10 @@
 # Aepc
 
+[English](README.md) | [简体中文](/docs/README.zh-CN.md)
+
 Aepc (a.k.a. Arknights: Endfield Pipeline Calculator) — Endfield's Automated Industry Complex inside your terminal.
 
-[English](README.md) | [简体中文](/docs/README.zh-CN.md)
+[![built with garnix](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Fgarnix.io%2Fapi%2Fbadges%2FStarryReverie%2Faepc%3Fbranch%3Dmaster)](https://garnix.io/repo/StarryReverie/aepc)
 
 ## Overview
 
