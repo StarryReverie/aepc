@@ -2,9 +2,13 @@
 
 Aepc (a.k.a. Arknights: Endfield Pipeline Calculator) — Endfield's Automated Industry Complex inside your terminal.
 
+[English](README.md) | [简体中文](/docs/README.zh-CN.md)
+
 ## Overview
 
 Aepc is a planning utility application for the AIC system in the game [Arknights: Endfield](https://endfield.hypergryph.com/), written in Rust.
+
+![Plan Tree](/docs/assets/plan-tree.png)
 
 Generates tree-style optimal production plans for any item with essential metrics annotated. Arbitrarily complex pipelines are well supported, since Aepc handles:
 
@@ -48,13 +52,31 @@ Build from the current directory:
 ```sh
 # Using Nix flake and Nix command CLI
 nix --extra-experimental-features "nix-command flakes" build .#packages.<system>.aepc
-# Using tradtional and stable Nix
+# Using traditional and stable Nix
 nix-build . -A packages.<system>.aepc
+```
+
+Add the application exported by this flake to your NixOS configuration:
+
+```nix
+# flake.nix
+{
+  inputs.aepc.url = "github:StarryReverie/aepc";
+  # ...
+}
+
+# configuration.nix
+{ pkgs, inputs, ... }:
+{
+  environment.systemPackages = [
+    inputs.aepc.packages.${pkgs.stdenv.hostPlatform.system}.aepc
+  ];
+}
 ```
 
 ## License
 
-The source code of this project is licensed under [GPL-3.0-or-later](LICENSE), except the protion that embeds the game data.
+The source code of this project is licensed under [GPL-3.0-or-later](/LICENSE), except the portion that embeds the game data.
 
 Arknights: Endfield is a trademark of [Hypergryph](https://www.hypergryph.com/). All game-related names, images, and data are the property of Hypergryph. This project is an unofficial fan-made tool and is not affiliated with or endorsed by Hypergryph.
 
