@@ -275,7 +275,11 @@ impl PlanFactoryImpl {
                     .build()
                     .unwrap(),
             );
-        } else if let Some(frame) = context.trace.iter_mut().rfind(|frame| frame.is_item(target)) {
+        } else if let Some(frame) = context
+            .trace
+            .iter_mut()
+            .rfind(|frame| frame.is_item(target))
+        {
             let BuildPlanTrace::Item { flow_cyclic, .. } = frame else {
                 unreachable!();
             };
@@ -308,13 +312,7 @@ impl PlanFactoryImpl {
                 producers.first().unwrap(),
             )
         } else {
-            self.build_aggregated_plan_item_node(
-                context,
-                output,
-                target,
-                flow_target,
-                producers,
-            )
+            self.build_aggregated_plan_item_node(context, output, target, flow_target, producers)
         };
 
         context.trace.pop();

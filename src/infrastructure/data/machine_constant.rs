@@ -51,7 +51,12 @@ fn try_get_machines() -> AnyhowResult<Vec<Machine>> {
         Machine::new(
             MachineId::new("fluid-pump")?,
             MachineName::new("Fluid Pump")?,
-            Power::new(5.0)?,
+            Power::new(10.0)?,
+        ),
+        Machine::new(
+            MachineId::new("acid-resistant-pump-mk-ii")?,
+            MachineName::new("Acid Resistant Pump Mk II")?,
+            Power::new(20.0)?,
         ),
         Machine::new(
             MachineId::new("portable-originium-rig")?,
@@ -121,8 +126,18 @@ fn try_get_machines() -> AnyhowResult<Vec<Machine>> {
             Power::new(50.0)?,
         ),
         Machine::new(
+            MachineId::new("Expanded-crucible")?,
+            MachineName::new("Expanded Crucible")?,
+            Power::new(100.0)?,
+        ),
+        Machine::new(
             MachineId::new("forge-of-the-sky")?,
             MachineName::new("Forge of the Sky")?,
+            Power::new(50.0)?,
+        ),
+        Machine::new(
+            MachineId::new("purification-unit")?,
+            MachineName::new("Purification Unit")?,
             Power::new(50.0)?,
         ),
         Machine::new(

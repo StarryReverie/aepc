@@ -178,6 +178,13 @@ fn try_get_recipes() -> AnyhowResult<Vec<Recipe>> {
             vec![],
             vec![(ItemId::new("clean-water")?, Quantity::new(1.0)?)],
         )?,
+        Recipe::new(
+            RecipeId::new("precipitation-acid__acid-resistant-pump-mk-ii")?,
+            MachineId::new("acid-resistant-pump-mk-ii")?,
+            Period::new(1.0)?,
+            vec![],
+            vec![(ItemId::new("precipitation-acid")?, Quantity::new(1.0)?)],
+        )?,
         // AIC Products
         Recipe::new(
             RecipeId::new("jincao-solutin__reactor-crucible")?,
@@ -210,6 +217,16 @@ fn try_get_recipes() -> AnyhowResult<Vec<Recipe>> {
             vec![(ItemId::new("liquid-xiranite")?, Quantity::new(1.0)?)],
         )?,
         Recipe::new(
+            RecipeId::new("liquid-heavy-xiranite__reactor-crucible")?,
+            MachineId::new("reactor-crucible")?,
+            Period::new(2.0)?,
+            vec![
+                (ItemId::new("heavy-xiranite")?, Quantity::new(1.0)?),
+                (ItemId::new("precipitation-acid")?, Quantity::new(1.0)?),
+            ],
+            vec![(ItemId::new("liquid-heavy-xiranite")?, Quantity::new(1.0)?)],
+        )?,
+        Recipe::new(
             RecipeId::new("xircon-effluent+inert-xircon-effluent")?,
             MachineId::new("reactor-crucible")?,
             Period::new(2.0)?,
@@ -220,6 +237,26 @@ fn try_get_recipes() -> AnyhowResult<Vec<Recipe>> {
             vec![
                 (ItemId::new("xircon-effluent")?, Quantity::new(1.0)?),
                 (ItemId::new("inert-xircon-effluent")?, Quantity::new(1.0)?),
+            ],
+        )?,
+        Recipe::new(
+            RecipeId::new("cuprium-solution")?,
+            MachineId::new("reactor-crucible")?,
+            Period::new(2.0)?,
+            vec![
+                (ItemId::new("cuprium-powder")?, Quantity::new(1.0)?),
+                (ItemId::new("precipitation-acid")?, Quantity::new(1.0)?),
+            ],
+            vec![(ItemId::new("cuprium-solution")?, Quantity::new(1.0)?)],
+        )?,
+        Recipe::new(
+            RecipeId::new("hetonite-solution+precipitation-acid")?,
+            MachineId::new("purification-unit")?,
+            Period::new(2.0)?,
+            vec![(ItemId::new("cuprium-solution")?, Quantity::new(4.0)?)],
+            vec![
+                (ItemId::new("hetonite-solution")?, Quantity::new(1.0)?),
+                (ItemId::new("precipitation-acid")?, Quantity::new(1.0)?),
             ],
         )?,
         // TODO: carbon__refining-unit__buckflower
@@ -294,6 +331,19 @@ fn try_get_recipes() -> AnyhowResult<Vec<Recipe>> {
             vec![(ItemId::new("steel")?, Quantity::new(1.0)?)],
         )?,
         Recipe::new(
+            RecipeId::new("hetonite+sewage")?,
+            MachineId::new("reactor-crucible")?,
+            Period::new(2.0)?,
+            vec![
+                (ItemId::new("hetonite-solution")?, Quantity::new(2.0)?),
+                (ItemId::new("ferrium-powder")?, Quantity::new(1.0)?),
+            ],
+            vec![
+                (ItemId::new("hetonite")?, Quantity::new(1.0)?),
+                (ItemId::new("sewage")?, Quantity::new(1.0)?),
+            ],
+        )?,
+        Recipe::new(
             RecipeId::new("xiranite")?,
             MachineId::new("forge-of-the-sky")?,
             Period::new(2.0)?,
@@ -302,6 +352,16 @@ fn try_get_recipes() -> AnyhowResult<Vec<Recipe>> {
                 (ItemId::new("clean-water")?, Quantity::new(1.0)?),
             ],
             vec![(ItemId::new("xiranite")?, Quantity::new(1.0)?)],
+        )?,
+        Recipe::new(
+            RecipeId::new("heavy-xiranite")?,
+            MachineId::new("forge-of-the-sky")?,
+            Period::new(10.0)?,
+            vec![
+                (ItemId::new("xiranite")?, Quantity::new(10.0)?),
+                (ItemId::new("xircon-effluent")?, Quantity::new(5.0)?),
+            ],
+            vec![(ItemId::new("heavy-xiranite")?, Quantity::new(1.0)?)],
         )?,
         Recipe::new(
             RecipeId::new("xircon")?,
@@ -470,6 +530,7 @@ fn try_get_recipes() -> AnyhowResult<Vec<Recipe>> {
         // TODO: ferrium-bottle+jincao-solution__separating-unit
         // TODO: ferrium-bottle+yazhen-solution__separating-unit
         // TODO: ferrium-bottle+liquid-xiranite__separating-unit
+        // TODO: ferrium-bottle+liquid-heavy-xiranite__separating-unit
         Recipe::new(
             RecipeId::new("ferrium-bottle__moulding-unit")?,
             MachineId::new("moulding-unit")?,
@@ -536,6 +597,13 @@ fn try_get_recipes() -> AnyhowResult<Vec<Recipe>> {
             vec![(ItemId::new("cuprium-part")?, Quantity::new(1.0)?)],
         )?,
         Recipe::new(
+            RecipeId::new("hetonite-part")?,
+            MachineId::new("fitting-unit")?,
+            Period::new(10.0)?,
+            vec![(ItemId::new("hetonite")?, Quantity::new(5.0)?)],
+            vec![(ItemId::new("hetonite-part")?, Quantity::new(1.0)?)],
+        )?,
+        Recipe::new(
             RecipeId::new("amethyst-component")?,
             MachineId::new("gearing-unit")?,
             Period::new(10.0)?,
@@ -584,6 +652,16 @@ fn try_get_recipes() -> AnyhowResult<Vec<Recipe>> {
                 (ItemId::new("xiranite")?, Quantity::new(10.0)?),
             ],
             vec![(ItemId::new("cuprium-component")?, Quantity::new(1.0)?)],
+        )?,
+        Recipe::new(
+            RecipeId::new("hetonite-component")?,
+            MachineId::new("gearing-unit")?,
+            Period::new(10.0)?,
+            vec![
+                (ItemId::new("hetonite-part")?, Quantity::new(2.0)?),
+                (ItemId::new("heavy-xiranite")?, Quantity::new(2.0)?),
+            ],
+            vec![(ItemId::new("hetonite-component")?, Quantity::new(1.0)?)],
         )?,
         Recipe::new(
             RecipeId::new("lc-valley-battery")?,
@@ -684,6 +762,19 @@ fn try_get_recipes() -> AnyhowResult<Vec<Recipe>> {
             ],
             vec![(
                 ItemId::new("ferrium-bottle-liquid-xiranite")?,
+                Quantity::new(1.0)?,
+            )],
+        )?,
+        Recipe::new(
+            RecipeId::new("ferrium-bottle-liquid-heavy-xiranite")?,
+            MachineId::new("filling-unit")?,
+            Period::new(2.0)?,
+            vec![
+                (ItemId::new("ferrium-bottle")?, Quantity::new(1.0)?),
+                (ItemId::new("liquid-heavy-xiranite")?, Quantity::new(1.0)?),
+            ],
+            vec![(
+                ItemId::new("ferrium-bottle-liquid-heavy-xiranite")?,
                 Quantity::new(1.0)?,
             )],
         )?,

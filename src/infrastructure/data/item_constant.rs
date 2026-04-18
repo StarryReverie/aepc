@@ -113,6 +113,10 @@ fn try_get_items() -> AnyhowResult<Vec<Item>> {
             ItemId::new("clean-water")?,
             ItemName::new("Clean Water")?,
         ),
+        Item::new(
+            ItemId::new("precipitation-acid")?,
+            ItemName::new("Precipitation Acid")?,
+        ),
         // AIC Products
         Item::new(
             ItemId::new("jincao-solution")?,
@@ -127,12 +131,24 @@ fn try_get_items() -> AnyhowResult<Vec<Item>> {
             ItemName::new("Liquid Xiranite")?,
         ),
         Item::new(
+            ItemId::new("liquid-heavy-xiranite")?,
+            ItemName::new("Liquid Heavy Xiranite")?,
+        ),
+        Item::new(
             ItemId::new("xircon-effluent")?,
             ItemName::new("Xircon Effluent")?,
         ),
         Item::new(
             ItemId::new("inert-xircon-effluent")?,
             ItemName::new("Inert Xircon Effluent")?,
+        ),
+        Item::new(
+            ItemId::new("hetonite-solution")?,
+            ItemName::new("Hetonite Solution")?,
+        ),
+        Item::new(
+            ItemId::new("cuprium-solution")?,
+            ItemName::new("Cuprium Solution")?,
         ),
         Item::new(
             ItemId::new("sewage")?,
@@ -175,12 +191,20 @@ fn try_get_items() -> AnyhowResult<Vec<Item>> {
             ItemName::new("Steel")?,
         ),
         Item::new(
+            ItemId::new("hetonite")?,
+            ItemName::new("Hetonite")?,
+        ),
+        Item::new(
             ItemId::new("bumper-rich")?,
             ItemName::new("Bumper-Rich")?,
         ),
         Item::new(
             ItemId::new("xiranite")?,
             ItemName::new("Xiranite")?,
+        ),
+        Item::new(
+            ItemId::new("heavy-xiranite")?,
+            ItemName::new("Heavy Xiranite")?,
         ),
         Item::new(
             ItemId::new("xircon")?,
@@ -267,6 +291,10 @@ fn try_get_items() -> AnyhowResult<Vec<Item>> {
             ItemName::new("Cuprium Bottle")?,
         ),
         Item::new(
+            ItemId::new("hetonite-bottle")?,
+            ItemName::new("Hetonite Bottle")?,
+        ),
+        Item::new(
             ItemId::new("amethyst-part")?,
             ItemName::new("Amethyst Part")?,
         ),
@@ -287,6 +315,10 @@ fn try_get_items() -> AnyhowResult<Vec<Item>> {
             ItemName::new("Cuprium Part")?,
         ),
         Item::new(
+            ItemId::new("hetonite-part")?,
+            ItemName::new("Hetonite Part")?,
+        ),
+        Item::new(
             ItemId::new("amethyst-component")?,
             ItemName::new("Amethyst Component")?,
         ),
@@ -305,6 +337,10 @@ fn try_get_items() -> AnyhowResult<Vec<Item>> {
         Item::new(
             ItemId::new("cuprium-component")?,
             ItemName::new("Cuprium Component")?,
+        ),
+        Item::new(
+            ItemId::new("hetonite-component")?,
+            ItemName::new("Hetonite Component")?,
         ),
         Item::new(
             ItemId::new("lc-valley-battery")?,
@@ -341,6 +377,10 @@ fn try_get_items() -> AnyhowResult<Vec<Item>> {
         Item::new(
             ItemId::new("ferrium-bottle-liquid-xiranite")?,
             ItemName::new("Ferrium Bottle (Liquid Xiranite)")?,
+        ),
+        Item::new(
+            ItemId::new("ferrium-bottle-liquid-heavy-xiranite")?,
+            ItemName::new("Ferrium Bottle (Liquid Heavy Xiranite)")?,
         ),
         Item::new(
             ItemId::new("cuprium-bottle-jincao-solution")?,
